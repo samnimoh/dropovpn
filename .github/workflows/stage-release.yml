@@ -12,17 +12,29 @@ permissions:
 jobs:
   stage:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       BUILD_RUN_ID: ${{ inputs.run_id }}
     steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Verify build and draft release
+        id: verify
         run: |
           [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
           gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > /tmp/build.json
           jq -e '.conclusion == "success" and .name == "Check and package DropoVPN" and .head_branch == "main"' /tmp/build.json
-          gh release view v0.2.0 --json isDraft --jq '.isDraft' | grep -qx true
+          sha=$(jq -r '.head_sha' /tmp/build.json)
+          gh release view v0.2.0 --json isDraft,targetCommitish | jq -e --arg sha "$sha" '.isDraft == true and .targetCommitish == $sha'
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.verify.outputs.sha }}
+      - name: Package corresponding runtime sources
+        run: node scripts/package-runtime-sources.mjs
       - uses: actions/download-artifact@v4
         with:
           github-token: ${{ github.token }}
@@ -38,3 +50,9 @@ jobs:
           test -f DropoVPN-0.2.0-win-x64.exe
           sha256sum DropoVPN-0.2.0-mac-arm64.dmg DropoVPN-0.2.0-mac-arm64.zip DropoVPN-0.2.0-win-x64.exe > INSTALLER-SHA256SUMS.txt
           gh release upload v0.2.0 DropoVPN-0.2.0-mac-arm64.dmg DropoVPN-0.2.0-mac-arm64.zip DropoVPN-0.2.0-win-x64.exe INSTALLER-SHA256SUMS.txt --clobber
+      - name: Upload source archive and complete checksums
+        run: |
+          cp installers/INSTALLER-SHA256SUMS.txt release/SHA256SUMS.txt
+          cd release
+          sha256sum DropoVPN-0.2.0-runtime-sources.tar.gz >> SHA256SUMS.txt
+          gh release upload v0.2.0 DropoVPN-0.2.0-runtime-sources.tar.gz SHA256SUMS.txt --clobber
