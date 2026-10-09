@@ -8,7 +8,7 @@ import { detectEngine, managementArguments } from '../electron/launcher.mjs';
 import { VPN } from '../electron/vpn.mjs';
 
 test('real OpenVPN: authenticates management, queries credentials, and exits on disconnect without a tunnel', { timeout: 15000 }, async t => {
-  const engine = await detectEngine(); if (!engine.available) { t.skip('Install OpenVPN 2.6+ to run the real-engine integration test.'); return; }
+  const engine = await detectEngine(process.env.DROPOVPN_ENGINE || ''); if (!engine.available) { t.skip('Build the included runtime or install OpenVPN 2.6+ to run the real-engine integration test.'); return; }
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dropovpn-engine-'));
   const config = `client\ndev tun\nremote 127.0.0.1 65530 udp\nauth-user-pass\npeer-fingerprint ${Array(32).fill('AA').join(':')}\n`;
   const store = { config: () => config, profile: () => ({ requiresAuth: true }), credentials: () => ({ username: 'test-user', password: 'test-password' }), data: { settings: { autoReconnect: true } } };

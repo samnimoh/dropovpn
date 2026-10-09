@@ -34,7 +34,7 @@ build('lzo', './configure', [`--prefix=${prefix}`, '--disable-shared', '--enable
 build('lzo', 'make', ['-j', jobs]);
 build('lzo', 'make', ['install']);
 build('lz4', 'make', ['-C', 'lib', '-j', jobs, 'BUILD_SHARED=no', 'BUILD_STATIC=yes', `PREFIX=${prefix}`, 'install']);
-build('openvpn', './configure', [`--prefix=${prefix}`, '--disable-dco', '--disable-plugins', '--disable-plugin-auth-pam', '--disable-plugin-down-root', '--disable-pkcs11', '--with-openssl-engine=no', '--disable-debug', '--disable-dependency-tracking', `--host=${targetArch}-apple-darwin`], { OPENSSL_CFLAGS: `-I${prefix}/include`, OPENSSL_LIBS: `-L${prefix}/lib -lssl -lcrypto`, LZO_CFLAGS: `-I${prefix}/include`, LZO_LIBS: `-L${prefix}/lib -llzo2`, LZ4_CFLAGS: `-I${prefix}/include`, LZ4_LIBS: `-L${prefix}/lib -llz4` });
+build('openvpn', './configure', [`--prefix=${prefix}`, '--disable-dco', '--disable-dns-updown-by-default', '--disable-plugins', '--disable-plugin-auth-pam', '--disable-plugin-down-root', '--disable-pkcs11', '--with-openssl-engine=no', '--disable-debug', '--disable-dependency-tracking', `--host=${targetArch}-apple-darwin`], { OPENSSL_CFLAGS: `-I${prefix}/include`, OPENSSL_LIBS: `-L${prefix}/lib -lssl -lcrypto`, LZO_CFLAGS: `-I${prefix}/include`, LZO_LIBS: `-L${prefix}/lib -llzo2`, LZ4_CFLAGS: `-I${prefix}/include`, LZ4_LIBS: `-L${prefix}/lib -llz4` });
 build('openvpn', 'make', ['-j', jobs]);
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(path.join(output, 'licenses'), { recursive: true });
@@ -49,6 +49,7 @@ for (const [name, source] of Object.entries(sources)) {
   const names = name === 'lz4' ? ['lib/LICENSE', 'LICENSE'] : ['COPYING', 'COPYRIGHT', 'LICENSE', 'LICENSE.txt', 'AUTHORS'];
   for (const file of names) if (fs.existsSync(path.join(source, file))) fs.copyFileSync(path.join(source, file), path.join(output, 'licenses', `${name}-${path.basename(file)}`));
 }
+fs.copyFileSync(path.join(root, 'build/openvpn-bundled-licenses.txt'), path.join(output, 'licenses/openvpn-bundled-licenses.txt'));
 fs.copyFileSync(path.join(root, 'build/runtime-lock.json'), path.join(output, 'sources.json'));
 fs.writeFileSync(path.join(output, 'README.txt'), 'OpenVPN runtime built for DropoVPN. No Homebrew installation is required.\nCorresponding source archives and build scripts accompany each DropoVPN release:\nhttps://github.com/samnimoh/dropovpn/releases\nOpenVPN is a separate GPL-licensed executable. See licenses/ and sources.json.\n');
 fs.writeFileSync(stamp, cacheKey);

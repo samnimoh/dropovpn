@@ -8,11 +8,12 @@ try {
   $signature = Get-AuthenticodeSignature -LiteralPath $msi
   if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'OpenVPN') { throw 'The bundled OpenVPN installer does not have a valid OpenVPN signature.' }
   if ($VerifyOnly) { Write-Host 'OpenVPN MSI checksum and publisher signature verified.'; exit 0 }
-  $binary = Join-Path ${env:ProgramFiles} 'OpenVPN\bin\openvpn.exe'
+  $nativeProgramFiles = if ($env:ProgramW6432) { $env:ProgramW6432 } else { $env:ProgramFiles }
+  $binary = Join-Path $nativeProgramFiles 'OpenVPN\bin\openvpn.exe'
   $driverReady = Test-Path 'HKLM:\SYSTEM\CurrentControlSet\Services\tap0901'
   if (Test-Path -LiteralPath $binary) {
     $versionText = (& $binary --version 2>&1 | Out-String)
-    if ($versionText -match 'OpenVPN (2\.\d+\.\d+)' -and [version]$Matches[1] -ge [version]$manifest.version -and $driverReady) {
+    if ($versionText -match 'OpenVPN (2\.\d+\.\d+)' -and [version]($Matches[1]) -ge [version]$manifest.version -and $driverReady) {
       Write-Host 'A compatible OpenVPN engine and TAP driver are already installed.'
       exit 0
     }

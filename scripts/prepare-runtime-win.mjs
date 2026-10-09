@@ -10,6 +10,7 @@ fs.copyFileSync(installer, path.join(destination, 'OpenVPN.msi'));
 fs.copyFileSync(path.join(root, 'build/windows-runtime.json'), path.join(destination, 'manifest.json'));
 fs.copyFileSync(path.join(root, 'build/install-openvpn.ps1'), path.join(destination, 'install-openvpn.ps1'));
 fs.copyFileSync(path.join(root, 'THIRD-PARTY-NOTICES.txt'), path.join(destination, 'THIRD-PARTY-NOTICES.txt'));
+for (const file of ['openvpn-bundled-licenses.txt', 'openvpn-windows-license.txt']) fs.copyFileSync(path.join(root, 'build', file), path.join(destination, file));
 if (process.platform === 'win32') {
   run('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(root, 'build/install-openvpn.ps1'), '-RuntimeDirectory', destination, '-VerifyOnly']);
 }

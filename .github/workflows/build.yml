@@ -34,10 +34,17 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - if: runner.os == 'Windows'
         run: npm run dist:win -- --publish never
+      - if: runner.os == 'macOS'
+        name: Test the bundled macOS engine
+        run: DROPOVPN_ENGINE="$PWD/vendor/darwin-$(node -p process.arch)/openvpn/openvpn" npm test
       - if: runner.os == 'Windows'
         name: Test the complete DropoVPN installer
         shell: powershell
         run: |
+          # Remove the dependency installed above so this exercises a fresh setup.
+          $msi = (Resolve-Path vendor/win32-x64/openvpn/OpenVPN.msi).Path
+          $remove = Start-Process msiexec.exe -ArgumentList @('/x', ('"' + $msi + '"'), '/qn', '/norestart') -Wait -PassThru
+          if ($remove.ExitCode -notin @(0,3010,1641)) { throw 'Could not reset the runtime for the clean installation test' }
           $installer = Get-ChildItem release/DropoVPN-*-win-x64.exe | Select-Object -First 1
           $process = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
           if ($process.ExitCode -notin @(0,3010)) { throw "DropoVPN setup failed: $($process.ExitCode)" }
