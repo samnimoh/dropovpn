@@ -2,7 +2,7 @@
 
 An Electron OpenVPN client for macOS and Windows, with automatic reconnection and an encrypted, per-profile saved password. The desktop interface uses React and TypeScript; the main process manages OpenVPN and credential storage.
 
-**[Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.1.1)** · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
+**[Visit the download website](https://dropovpn.vercel.app)** · [Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.1.1) · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
 
 ![DropoVPN connection screen with example profiles](website/assets/screenshots/connection.png)
 
