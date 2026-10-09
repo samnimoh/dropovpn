@@ -2,7 +2,7 @@
 
 An Electron OpenVPN client for macOS and Windows, with automatic reconnection and an encrypted, per-profile saved password. The desktop interface uses React and TypeScript; the main process manages OpenVPN and credential storage.
 
-**[Visit the download website](https://dropovpn.vercel.app)** · [Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.1.1) · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
+**[Visit the download website](https://dropovpn.vercel.app)** · [Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.2.0) · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
 
 ![DropoVPN connection screen with example profiles](website/assets/screenshots/connection.png)
 
@@ -10,14 +10,14 @@ An Electron OpenVPN client for macOS and Windows, with automatic reconnection an
 
 | Platform | Installer | Architecture |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/DropoVPN-0.1.1-mac-arm64.dmg) · [ZIP](https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/DropoVPN-0.1.1-mac-arm64.zip) | Apple Silicon / ARM64 |
-| Windows | [Installer](https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/DropoVPN-0.1.1-win-x64.exe) | Intel / AMD x64 |
+| macOS | [DMG](https://github.com/samnimoh/dropovpn/releases/download/v0.2.0/DropoVPN-0.2.0-mac-arm64.dmg) · [ZIP](https://github.com/samnimoh/dropovpn/releases/download/v0.2.0/DropoVPN-0.2.0-mac-arm64.zip) | Apple Silicon / ARM64 |
+| Windows | [Installer](https://github.com/samnimoh/dropovpn/releases/download/v0.2.0/DropoVPN-0.2.0-win-x64.exe) | Intel / AMD x64 |
 
-[Release notes](https://github.com/samnimoh/dropovpn/releases/tag/v0.1.1) · [SHA-256 checksums](https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/SHA256SUMS.txt)
+[Release notes](https://github.com/samnimoh/dropovpn/releases/tag/v0.2.0) · [SHA-256 checksums](https://github.com/samnimoh/dropovpn/releases/download/v0.2.0/SHA256SUMS.txt)
 
-**Version 0.1.1 is an unsigned public preview.** macOS notarization is not included; your operating system may display security warnings. The macOS app has been launched and tested locally. The Windows installer was cross-built; Windows runtime/elevation and live VPN routing still require testing. There is no Intel Mac installer in this release.
+**Version 0.2.0 is an unsigned public preview.** macOS notarization is not included; your operating system may display security warnings. The installers include the OpenVPN runtime. Windows setup installs the signed TAP-Windows6 network driver and requires administrator permission. Live VPN routing and reconnection still require testing with your own server. There is no Intel Mac installer in this release.
 
-DropoVPN is a client, not a VPN service. Install OpenVPN Community 2.6+ separately and bring a working `.ovpn` profile. OpenVPN Connect does not provide the executable this application uses. There is no kill switch; traffic is not blocked during reconnection.
+DropoVPN is a client, not a VPN service. OpenVPN is included: macOS uses the engine inside the app; Windows installs the official OpenVPN engine and signed TAP-Windows6 driver in the same setup flow. Bring a working `.ovpn` profile. There is no kill switch; traffic is not blocked during reconnection.
 
 ## Screenshots
 
@@ -52,7 +52,9 @@ For development with hot reload:
 npm run dev
 ```
 
-Install **OpenVPN Community 2.6 or newer** separately. OpenVPN Connect is a different product and does not provide the executable used here.
+Downloaded installers include OpenVPN 2.7.8. No Homebrew or separate OpenVPN installer is needed for normal use. macOS requires version 13 or later; Windows builds target x64 PCs. A system administrator prompt is still required when starting a tunnel.
+
+For **development from source**, either build the bundled runtime or use an existing OpenVPN Community 2.6+ installation:
 
 - **macOS:** `brew install openvpn`. DropoVPN checks the standard Apple Silicon and Intel Homebrew locations. You can also select an executable in Settings.
 - **Windows:** install [OpenVPN Community](https://openvpn.net/community-downloads/) including its network driver. The default path is `C:\Program Files\OpenVPN\bin\openvpn.exe`.
@@ -100,9 +102,9 @@ npm run dist:win       # NSIS installer on Windows
 
 The test suite includes a real OpenVPN management handshake when the executable is installed. That test uses `dev null` and loopback, with no elevation, tunnel, route changes or external VPN server. It skips if the engine is unavailable. The protocol tests cover credential replay, rejection, engine crashes, explicit disconnect, wake from sleep, and peer impersonation. Store tests exercise encryption through an injected cipher; the desktop application uses the operating system's provider.
 
-GitHub Actions builds on native macOS and Windows runners and uploads installers. OpenVPN and its driver are not bundled. Installers are unsigned until release signing credentials are supplied. For distribution, configure Electron Builder's macOS Developer ID/notarization and Windows signing; consistent macOS signing also avoids unnecessary Keychain prompts across updates. The development toolchain currently has transitive moderate `sprintf-js` advisories through Electron Builder; `npm audit --omit=dev` reports no production dependency advisories at the time of implementation.
+GitHub Actions builds on native macOS and Windows runners and uploads installers. The macOS app bundles a static OpenVPN runtime, with no Homebrew library dependencies. Windows setup embeds the official, checksum-pinned OpenVPN MSI and verifies its Authenticode publisher signature before installing the engine and TAP driver. The installer handles restart-required results and stops with a clear error if dependency setup fails. Existing compatible engine/driver installations are reused; a newer incompatible installation is never silently downgraded. Uninstalling DropoVPN leaves shared OpenVPN components installed; remove those through Windows Installed Apps only if no other VPN client uses them. Installers are unsigned until release signing credentials are supplied. For distribution, configure Electron Builder's macOS Developer ID/notarization and Windows signing; consistent macOS signing also avoids unnecessary Keychain prompts across updates. The development toolchain currently has transitive moderate `sprintf-js` advisories through Electron Builder; `npm audit --omit=dev` reports no production dependency advisories at the time of implementation.
 
-A real VPN profile/server is required to validate end-to-end routing, DNS and reconnect behavior for your environment. Windows elevation and driver behavior must also be verified on a Windows machine; a macOS build does not validate them.
+A real VPN profile/server is required to validate end-to-end routing, DNS and reconnect behavior for your environment. CI tests the dependency setup and complete DropoVPN installer on a Windows runner. That checks installation, executable startup, and driver registration; it does not validate routing through a live server.
 
 ## Implementation references
 
@@ -110,7 +112,9 @@ A real VPN profile/server is required to validate end-to-end routing, DNS and re
 - [OpenVPN 2.7 manual](https://openvpn.net/community-docs/community-articles/openvpn-2-7-manual.html)
 - [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage)
 
-Application source is MIT licensed. OpenVPN is distributed separately under its own license.
+Application source is MIT licensed. OpenVPN and its runtime dependencies retain their own licenses. See [third-party notices](THIRD-PARTY-NOTICES.txt). Each release includes [corresponding runtime sources and build recipes](https://github.com/samnimoh/dropovpn/releases/download/v0.2.0/DropoVPN-0.2.0-runtime-sources.tar.gz).
+
+The pinned downloads are recorded in `build/runtime-lock.json` and `build/windows-runtime.json`. `npm run runtime:mac` builds the engine from source using Xcode command line tools and pkg-config. `npm run runtime:win` prepares the signed upstream MSI. Run `node scripts/package-runtime-sources.mjs` before publishing installers to produce the matching source archive.
 
 ## Download website
 
