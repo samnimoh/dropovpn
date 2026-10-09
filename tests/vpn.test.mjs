@@ -28,7 +28,8 @@ function fixture(t, opts = {}) {
       while ((end = buffer.indexOf('\n')) >= 0) {
         const command = buffer.slice(0, end); buffer = buffer.slice(end + 1); commands.push(command);
         if (command === token) child.send('SUCCESS: password is correct');
-        if (command === 'echo all') child.send(`1,dropovpn-peer:${opts.rogue ? 'incorrect-proof' : config.match(/dropovpn-peer:([a-f0-9]+)/)[1]}`);
+        if (command === 'echo all') { child.send(`1,dropovpn-peer:${opts.rogue ? 'incorrect-proof' : config.match(/dropovpn-peer:([a-f0-9]+)/)[1]}`); child.send('END'); }
+        if (command !== token && command !== 'echo all') child.send('SUCCESS: command accepted');
         if (command === 'hold release') child.send(">PASSWORD:Need 'Auth' username/password");
       }
     });

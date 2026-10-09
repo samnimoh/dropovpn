@@ -1,0 +1,40 @@
+name: Stage verified installers in a draft release
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Check and package DropoVPN run ID
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: write
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN_ID: ${{ inputs.run_id }}
+    steps:
+      - name: Verify build and draft release
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > /tmp/build.json
+          jq -e '.conclusion == "success" and .name == "Check and package DropoVPN" and .head_branch == "main"' /tmp/build.json
+          gh release view v0.2.0 --json isDraft --jq '.isDraft' | grep -qx true
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id }}
+          pattern: DropoVPN-*
+          merge-multiple: true
+          path: installers
+      - name: Upload verified installers
+        working-directory: installers
+        run: |
+          test -f DropoVPN-0.2.0-mac-arm64.dmg
+          test -f DropoVPN-0.2.0-mac-arm64.zip
+          test -f DropoVPN-0.2.0-win-x64.exe
+          sha256sum DropoVPN-0.2.0-mac-arm64.dmg DropoVPN-0.2.0-mac-arm64.zip DropoVPN-0.2.0-win-x64.exe > INSTALLER-SHA256SUMS.txt
+          gh release upload v0.2.0 DropoVPN-0.2.0-mac-arm64.dmg DropoVPN-0.2.0-mac-arm64.zip DropoVPN-0.2.0-win-x64.exe INSTALLER-SHA256SUMS.txt --clobber

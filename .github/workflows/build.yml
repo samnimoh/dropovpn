@@ -1,7 +1,9 @@
 name: Check and package DropoVPN
 on:
   push:
+    paths-ignore: ['website/**', 'README.md', '.github/workflows/stage-release.yml']
   pull_request:
+    paths-ignore: ['website/**', 'README.md', '.github/workflows/stage-release.yml']
   workflow_dispatch:
 jobs:
   build:
@@ -58,3 +60,8 @@ jobs:
             release/*.dmg
             release/*.zip
             release/*.exe
+      - if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-runtime
+          path: vendor/darwin-arm64/openvpn

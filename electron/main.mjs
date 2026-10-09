@@ -7,6 +7,7 @@ import { detectEngine } from './launcher.mjs';
 import { VPN } from './vpn.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+const engineOptions = { resourcesPath: app.isPackaged ? process.resourcesPath : path.join(here, '../vendor', `${process.platform}-${process.arch}`) };
 const development = !app.isPackaged && process.env.DROPOVPN_DEV === '1';
 const uiURL = development ? 'http://127.0.0.1:5173/' : new URL('../dist/index.html', import.meta.url).href;
 app.setName('DropoVPN');
@@ -74,7 +75,7 @@ async function flushProfileFiles() {
 }
 
 async function start() {
-  store = new Store(app.getPath('userData'), safeStorage); engine = await detectEngine(store.data.settings.enginePath);
+  store = new Store(app.getPath('userData'), safeStorage); engine = await detectEngine(store.data.settings.enginePath, engineOptions);
   vpn = new VPN({ store }); vpn.on('change', publish);
   window = new BrowserWindow({ width: 1160, height: 820, minWidth: 900, minHeight: 680, title: 'DropoVPN', backgroundColor: '#f6f7f9', titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden', trafficLightPosition: { x: 22, y: 23 }, ...(process.platform === 'win32' ? { titleBarOverlay: { color: '#f6f7f9', symbolColor: '#333b4b', height: 44 } } : {}), webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -109,7 +110,7 @@ async function start() {
   });
   handle('forget', value => { store.forget(id(value)); if (vpn.session?.id === value) vpn.session.credentials = null; });
   handle('rename', (value, name) => { if (typeof name !== 'string' || !name.trim() || name.length > 80 || /[\r\n\0]/.test(name)) throw new Error('Enter a name between 1 and 80 characters.'); store.profile(id(value)).name = name.trim(); store.persist(); });
-  handle('connect', async value => { id(value); engine = await detectEngine(store.data.settings.enginePath); await vpn.connect(value, null, engine); });
+  handle('connect', async value => { id(value); engine = await detectEngine(store.data.settings.enginePath, engineOptions); await vpn.connect(value, null, engine); });
   handle('disconnect', () => vpn.disconnect());
   handle('credentials', async value => {
     if (!value || typeof value.username !== 'string' || typeof value.password !== 'string' || typeof value.remember !== 'boolean' || typeof value.privateKey !== 'boolean') throw new Error('Invalid credentials.');
@@ -121,11 +122,11 @@ async function start() {
     if ('launchAtLogin' in value && typeof value.launchAtLogin === 'boolean') app.setLoginItemSettings({ openAtLogin: value.launchAtLogin });
     store.settings(value);
   });
-  handle('engine-check', async () => { engine = await detectEngine(store.data.settings.enginePath); return engine; });
+  handle('engine-check', async () => { engine = await detectEngine(store.data.settings.enginePath, engineOptions); return engine; });
   handle('engine-select', async () => {
     const result = await dialog.showOpenDialog(window, { title: 'Select the OpenVPN executable', properties: ['openFile'] });
     if (result.canceled) return;
-    const found = await detectEngine(result.filePaths[0]);
+    const found = await detectEngine(result.filePaths[0], engineOptions);
     if (!found.available) throw new Error('Select an OpenVPN 2.6 or newer executable named openvpn or openvpn.exe.');
     store.data.settings.enginePath = found.path; store.persist(); engine = found;
   });

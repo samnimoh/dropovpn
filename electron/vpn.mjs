@@ -82,7 +82,12 @@ export class VPN extends EventEmitter {
           }
           continue;
         }
-        this.handle(session, parseLine(line));
+        if (line.startsWith('SUCCESS:') && session.commandPending) {
+          clearTimeout(session.commandTimer); session.commandPending = false;
+          this.flushCommand(session);
+        } else if (line.startsWith('ERROR:') && session.commandPending) {
+          this.fail(session, 'The OpenVPN engine rejected a control command. Check the engine version and try again.');
+        } else this.handle(session, parseLine(line));
       }
     });
     socket.on('close', () => {
@@ -95,7 +100,21 @@ export class VPN extends EventEmitter {
       }
     });
   }
-  command(session, command) { if (session.socket && !session.socket.destroyed) session.socket.write(command + '\n'); }
+  command(session, command) {
+    if (!session.socket || session.socket.destroyed) return;
+    (session.commandQueue ||= []).push(command);
+    this.flushCommand(session);
+  }
+  flushCommand(session) {
+    if (session.commandPending || !session.commandQueue?.length || !session.socket || session.socket.destroyed) return;
+    // The Windows management interface must finish replying before the next
+    // command. In particular, wait for the username ACK before the password.
+    session.commandPending = true;
+    session.socket.write(session.commandQueue.shift() + '\n');
+    session.commandTimer = setTimeout(() => {
+      if (!session.stopped) this.fail(session, 'The OpenVPN engine stopped responding. Try connecting again.');
+    }, 10000);
+  }
   handle(session, event) {
     if (!event || this.session !== session || session.stopped) return;
     if (event.type === 'state') {
@@ -119,6 +138,7 @@ export class VPN extends EventEmitter {
       else this.fail(session, 'This profile requests an unsupported authentication method. Use a username/password or certificate profile.');
     } else if (event.type === 'auth-failed') {
       session.credentials = null; session.privateKey = null;
+      session.commandQueue = session.commandQueue?.filter(command => !/^(username|password) /.test(command));
       // Pause instead of repeatedly submitting a rejected saved password.
       this.command(session, 'hold on');
       this.update({ status: 'credentials-required', prompt: event.realm === 'Private Key' ? 'Private Key' : 'Auth', connectedAt: null, localIp: null, message: 'Sign-in was rejected. Enter updated credentials to try again.' });
@@ -180,7 +200,7 @@ export class VPN extends EventEmitter {
   }
   finish(session) {
     if (this.session !== session || session.finishing) return;
-    session.finishing = true; clearTimeout(session.timer); session.server?.close();
+    session.finishing = true; clearTimeout(session.timer); clearTimeout(session.commandTimer); session.commandQueue = []; session.server?.close();
     for (const socket of session.sockets) socket.destroy();
     session.credentials = null; session.privateKey = null; this.session = null;
     if (this.state.status !== 'error') this.update(idle());

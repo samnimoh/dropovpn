@@ -17,7 +17,7 @@ export const managementArguments = port => ['--management', '127.0.0.1', String(
 export function engineCandidates(custom = '', { platform = process.platform, resourcesPath = process.resourcesPath, env = process.env } = {}) {
   if (custom) return [custom];
   if (platform === 'darwin') return [
-    ...(resourcesPath ? [path.join(resourcesPath, 'openvpn', 'openvpn')] : []),
+    ...(resourcesPath ? [path.posix.join(resourcesPath, 'openvpn', 'openvpn')] : []),
     '/opt/homebrew/sbin/openvpn', '/opt/homebrew/bin/openvpn', '/usr/local/sbin/openvpn', '/usr/local/bin/openvpn'
   ];
   return [path.win32.join(env.ProgramW6432 || env.ProgramFiles || 'C:\\Program Files', 'OpenVPN', 'bin', 'openvpn.exe')];
