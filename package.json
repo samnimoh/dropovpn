@@ -1,0 +1,76 @@
+{
+  "name": "dropovpn",
+  "version": "0.1.1",
+  "description": "OpenVPN client for macOS and Windows with automatic reconnection and encrypted password storage.",
+  "repository": { "type": "git", "url": "git+https://github.com/samnimoh/dropovpn.git" },
+  "bugs": { "url": "https://github.com/samnimoh/dropovpn/issues" },
+  "main": "electron/main.mjs",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && node scripts/start.mjs --dev\"",
+    "start": "npm run build && node scripts/start.mjs",
+    "build": "tsc --noEmit && vite build",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run build && npm test",
+    "pack:mac": "npm run build && electron-builder --mac --dir",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "test:electron": "npm run build && node scripts/smoke.mjs"
+  },
+  "keywords": ["openvpn", "vpn", "electron", "macos", "windows", "auto-reconnect"],
+  "author": "DropoVPN",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "lucide-react": "^1.54.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "concurrently": "^10.0.6",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "sharp": "^0.35.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "wait-on": "^9.5.1"
+  },
+  "build": {
+    "appId": "com.dropovpn.desktop",
+    "productName": "DropoVPN",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "icon": "assets/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+  }
+}

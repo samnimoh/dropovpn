@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7654d8">
+  <title>DropoVPN — A calmer OpenVPN connection</title>
+  <meta name="description" content="An open-source OpenVPN desktop client for macOS and Windows. Automatic reconnection, encrypted saved passwords, and your existing .ovpn profiles.">
+  <meta property="og:title" content="DropoVPN — A calmer OpenVPN connection">
+  <meta property="og:description" content="Bring your OpenVPN profile. Remember your password. Get back to what matters. Available for macOS and Windows.">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header wrap">
+    <a class="brand" href="#" aria-label="DropoVPN home"><img src="/assets/icon.svg" width="37" height="37" alt="">dropo<span>vpn</span></a>
+    <nav aria-label="Main navigation"><a href="#why">Why DropoVPN</a><a href="#setup">Get started</a><a href="https://github.com/samnimoh/dropovpn">GitHub</a></nav>
+    <a class="button small" href="#download">Download</a>
+  </header>
+  <main id="main">
+    <section class="hero wrap">
+      <a class="release-pill" href="https://github.com/samnimoh/dropovpn/releases/tag/v0.1.1"><span>PUBLIC PREVIEW</span> Meet DropoVPN 0.1.1</a>
+      <h1>A calmer connection.<br><em>One less interruption.</em></h1>
+      <p class="hero-copy">An OpenVPN client that finds its way back when your network drops. Bring your profile, remember your password, and get on with your day.</p>
+      <div class="hero-actions"><a class="button" href="#download">Get DropoVPN</a><a class="button secondary" href="https://github.com/samnimoh/dropovpn">Explore the source</a></div>
+      <p class="hero-note">macOS & Windows <span>·</span> Open source <span>·</span> Free to download</p>
+      <div class="product-stage">
+        <div class="stage-label"><span>YOUR CONNECTION, SIMPLIFIED</span><span>Built on OpenVPN</span></div>
+        <img class="product-shot" src="/assets/screenshots/connection.png" width="2320" height="1756" alt="DropoVPN desktop app showing connection controls, automatic reconnection, and two example VPN profiles" fetchpriority="high">
+      </div>
+      <p class="screenshot-caption">The actual desktop app, with example profiles. No active VPN connection is shown.</p>
+    </section>
+    <section class="why wrap section" id="why">
+      <div class="section-intro"><p class="eyebrow">LESS FRICTION. MORE FOCUS.</p><h2>The little things,<br>taken care of.</h2><p>For the connection you already have, with the everyday conveniences you’ve been missing.</p></div>
+      <div class="benefits">
+        <article><span class="feature-number">01 / RECONNECT</span><h3>Find your way back.</h3><p>Network interruption? DropoVPN retries automatically, reuses your credentials, and requests a fresh connection after sleep.</p></article>
+        <article><span class="feature-number">02 / REMEMBER</span><h3>One less password to type.</h3><p>Choose to save a password for each profile. It stays encrypted on your device with macOS Keychain or Windows DPAPI.</p></article>
+        <article><span class="feature-number">03 / MAKE IT YOURS</span><h3>Your profiles. Your networks.</h3><p>Import existing .ovpn files, switch between familiar networks, and keep your connection running in the menu bar or system tray.</p></article>
+      </div>
+    </section>
+    <section class="inside section" aria-labelledby="inside-title">
+      <div class="wrap"><div class="inside-heading"><div><p class="eyebrow">A PLACE FOR EVERY CONNECTION</p><h2 id="inside-title">Familiar, from the first click.</h2></div><div class="screenshot-tabs" role="tablist" aria-label="App screenshots"><button role="tab" id="tab-profiles" aria-controls="panel-profiles" aria-selected="true" tabindex="0">VPN profiles</button><button role="tab" id="tab-settings" aria-controls="panel-settings" aria-selected="false" tabindex="-1">Preferences</button></div></div>
+        <div id="panel-profiles" role="tabpanel" aria-labelledby="tab-profiles" tabindex="0"><img class="gallery-shot" src="/assets/screenshots/profiles.png" width="2320" height="1756" loading="lazy" alt="DropoVPN VPN profiles screen with Work network and Home lab example profiles"><p class="screenshot-caption">Keep multiple .ovpn profiles together. Rename a profile or forget its saved password from the profile menu.</p></div>
+        <div id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden><img class="gallery-shot" src="/assets/screenshots/settings.png" width="2320" height="1756" loading="lazy" alt="DropoVPN preferences for automatic reconnection, opening at login, and running in the background"><p class="screenshot-caption">A few useful preferences, plus a clear view of your installed OpenVPN engine.</p></div>
+      </div>
+    </section>
+    <section class="download wrap section" id="download">
+      <div class="center-heading"><p class="eyebrow">MAKE YOURSELF AT HOME</p><h2>Your next connection starts here.</h2><p>DropoVPN 0.1.1 · Public preview · MIT licensed</p></div>
+      <div class="download-grid">
+        <article class="download-card"><span class="platform-label">FOR YOUR MAC</span><h3>macOS</h3><p>Apple Silicon · ARM64</p><a class="button download-button" href="https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/DropoVPN-0.1.1-mac-arm64.dmg">Download for macOS <span>.dmg</span></a><a class="sub-link" href="https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/DropoVPN-0.1.1-mac-arm64.zip">Prefer a ZIP? Download the archive</a><div class="requirements"><strong>Before connecting</strong><p>Install OpenVPN Community 2.6+ with <code>brew install openvpn</code>. An Intel Mac build is not included in this release.</p></div></article>
+        <article class="download-card"><span class="platform-label">FOR YOUR PC</span><h3>Windows</h3><p>Intel & AMD · x64</p><a class="button download-button" href="https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/DropoVPN-0.1.1-win-x64.exe">Download for Windows <span>.exe</span></a><a class="sub-link" href="https://openvpn.net/community-downloads/">Get the OpenVPN Community engine</a><div class="requirements"><strong>Before connecting</strong><p>Install OpenVPN Community 2.6+ including its network driver. Windows ARM devices are not tested.</p></div></article>
+      </div>
+      <aside class="preview-note"><strong>A note about this preview</strong><p>These installers are unsigned; macOS and Windows may display security warnings. macOS notarization is not included. Windows runtime behavior and live VPN routing still need testing. Use a VPN profile from a provider or IT team you trust.</p><p>DropoVPN is a client, not a VPN service. The OpenVPN engine and a working profile are required separately. OpenVPN Connect does not supply the engine DropoVPN needs.</p></aside>
+      <div class="release-links"><a href="https://github.com/samnimoh/dropovpn/releases/tag/v0.1.1">Release notes & all files</a><span>·</span><a href="https://github.com/samnimoh/dropovpn/releases/download/v0.1.1/SHA256SUMS.txt">SHA-256 checksums</a></div>
+    </section>
+    <section class="setup wrap section" id="setup"><div class="section-intro"><p class="eyebrow">THREE SMALL STEPS</p><h2>Bring your own<br>connection.</h2><p>No new account to create. Use the network and credentials you already have.</p></div><ol class="steps"><li><span>1</span><div><h3>Install the app and engine.</h3><p>Download DropoVPN for your computer and install OpenVPN Community 2.6 or later.</p></div></li><li><span>2</span><div><h3>Import your .ovpn profile.</h3><p>Choose “Import profile” and select the file from your VPN provider or IT team. Keep any separate certificates alongside the file.</p></div></li><li><span>3</span><div><h3>Connect. Remember. Settle in.</h3><p>Enter your VPN credentials and choose “Remember me on this device.” Approve the system administrator prompt to start your tunnel.</p></div></li></ol></section>
+    <section class="faq wrap section" aria-labelledby="faq-title"><div><p class="eyebrow">GOOD TO KNOW</p><h2 id="faq-title">A little clarity.</h2></div><div class="questions">
+      <details><summary>What happens when my connection drops?</summary><p>With automatic reconnection enabled, DropoVPN retries using the same session credentials. Retry delays increase up to 30 seconds. Rejected passwords pause the connection so you can correct them. If the engine exits and must restart, your computer may ask for administrator permission again. Disconnecting manually stops retries.</p></details>
+      <details><summary>Where are my saved passwords stored?</summary><p>On your computer, encrypted with Electron safeStorage using macOS Keychain or Windows DPAPI. DropoVPN supplies credentials to the local OpenVPN engine when needed. You can forget a saved password from the profile menu. Windows DPAPI does not protect against every program running as your Windows user.</p></details>
+      <details><summary>Does it work with my existing VPN?</summary><p>DropoVPN supports imported OpenVPN TUN profiles with username/password or certificate authentication. One-time codes, browser sign-in, proxy authentication, hardware tokens, TAP profiles, and connection blocks are not supported in this preview. Some provider-specific configurations may need a compatible export.</p></details>
+      <details><summary>Does DropoVPN include a kill switch?</summary><p>No. Your profile controls routing, and traffic is not automatically blocked while reconnecting. A split-tunnel profile only routes the destinations it specifies through the VPN.</p></details>
+      <details><summary>Is it free and open source?</summary><p>Yes. DropoVPN’s application source is available under the MIT license. OpenVPN is installed separately and has its own license. <a href="https://github.com/samnimoh/dropovpn">Read the source</a> or <a href="https://github.com/samnimoh/dropovpn/issues">report an issue</a> on GitHub.</p></details>
+    </div></section>
+  </main>
+  <footer class="wrap site-footer"><div><a class="brand" href="#" aria-label="DropoVPN home"><img src="/assets/icon.svg" width="30" height="30" alt="">dropo<span>vpn</span></a><p>A calmer connection.</p></div><div class="footer-links"><a href="https://github.com/samnimoh/dropovpn">Source code</a><a href="https://github.com/samnimoh/dropovpn/issues">Report an issue</a><a href="https://github.com/samnimoh/dropovpn/blob/main/LICENSE">MIT license</a></div><p class="footer-note">Independent open-source project.<br>Not affiliated with OpenVPN Inc.</p></footer>
+</body>
+</html>

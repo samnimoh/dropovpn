@@ -1,0 +1,34 @@
+name: Check and package DropoVPN
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:electron
+      - if: runner.os == 'macOS'
+        run: npm run dist:mac -- --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - if: runner.os == 'Windows'
+        run: npm run dist:win -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DropoVPN-${{ runner.os }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
