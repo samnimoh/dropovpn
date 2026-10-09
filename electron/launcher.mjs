@@ -14,19 +14,26 @@ const encoded = value => Buffer.from(value, 'utf16le').toString('base64');
 
 export const managementArguments = port => ['--management', '127.0.0.1', String(port), 'management.pass', '--management-client', '--management-query-passwords', '--management-hold', '--auth-retry', 'interact', '--auth-nocache', '--resolv-retry', 'infinite', '--connect-retry', '2', '30', '--persist-tun', '--ping', '10', '--ping-restart', '30', '--verb', '3'];
 
-export async function detectEngine(custom = '') {
-  const candidates = custom ? [custom] : process.platform === 'darwin'
-    ? ['/opt/homebrew/sbin/openvpn', '/opt/homebrew/bin/openvpn', '/usr/local/sbin/openvpn', '/usr/local/bin/openvpn']
-    : [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'OpenVPN', 'bin', 'openvpn.exe')];
+export function engineCandidates(custom = '', { platform = process.platform, resourcesPath = process.resourcesPath, env = process.env } = {}) {
+  if (custom) return [custom];
+  if (platform === 'darwin') return [
+    ...(resourcesPath ? [path.join(resourcesPath, 'openvpn', 'openvpn')] : []),
+    '/opt/homebrew/sbin/openvpn', '/opt/homebrew/bin/openvpn', '/usr/local/sbin/openvpn', '/usr/local/bin/openvpn'
+  ];
+  return [path.win32.join(env.ProgramW6432 || env.ProgramFiles || 'C:\\Program Files', 'OpenVPN', 'bin', 'openvpn.exe')];
+}
+
+export async function detectEngine(custom = '', options = {}) {
+  const candidates = engineCandidates(custom, options);
   for (const candidate of candidates) {
     try {
       if (!fs.existsSync(candidate) || !/^openvpn(?:\.exe)?$/i.test(path.basename(candidate))) continue;
       const { stdout } = await execute(candidate, ['--version'], { timeout: 5000, windowsHide: true });
       const version = stdout.match(/OpenVPN (2\.(\d+)\.\d+)/);
-      if (version && Number(version[2]) >= 6) return { available: true, path: candidate, version: version[1] };
+      if (version && Number(version[2]) >= 6) return { available: true, path: candidate, version: version[1], bundled: !custom && !!(options.resourcesPath || process.resourcesPath) && candidate === path.join(options.resourcesPath || process.resourcesPath, 'openvpn', 'openvpn') };
     } catch { /* Continue to the next standard installation. */ }
   }
-  return { available: false, path: custom, version: null };
+  return { available: false, path: custom, version: null, bundled: false };
 }
 
 export function launchOpenVPN({ binary, config, port, token, platform = process.platform }) {
@@ -62,7 +69,7 @@ try {
   Set-Acl -LiteralPath $runtime -AclObject $acl
   ${copy}
   Set-Location -LiteralPath $runtime
-  & ${psQuote(binary)} '--config' 'profile.ovpn' ${args.map(psQuote).join(' ')} '--script-security' '1'
+  & ${psQuote(binary)} '--config' 'profile.ovpn' ${args.map(psQuote).join(' ')} '--script-security' '1' '--windows-driver' 'tap-windows6' '--disable-dco'
   $result=$LASTEXITCODE
 } catch { $result=1 } finally { Set-Location $env:SystemRoot; if(Test-Path -LiteralPath $runtime) { Remove-Item -LiteralPath $runtime -Recurse -Force } }
 exit $result`;

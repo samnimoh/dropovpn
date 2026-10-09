@@ -11,3 +11,4 @@ playwright-report/
 .vercel/
 .env*
 !.env.example
+vendor/

@@ -21,7 +21,7 @@ export class VPN extends EventEmitter {
   }
   async connect(id, supplied, engine, retry = false) {
     if (this.session) throw new Error('Disconnect the current session first.');
-    if (!engine.available) throw new Error('Install OpenVPN 2.6 or newer, then check the engine in Settings.');
+    if (!engine.available) throw new Error('Run the DropoVPN installer again to restore the included OpenVPN engine, then check it in Settings.');
     const profile = this.store.profile(id);
     // Revalidate decrypted data before it ever crosses the privilege boundary.
     const proof = randomBytes(32).toString('hex');

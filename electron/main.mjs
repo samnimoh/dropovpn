@@ -129,7 +129,7 @@ async function start() {
     if (!found.available) throw new Error('Select an OpenVPN 2.6 or newer executable named openvpn or openvpn.exe.');
     store.data.settings.enginePath = found.path; store.persist(); engine = found;
   });
-  handle('help', () => shell.openExternal('https://openvpn.net/community-downloads/'));
+  handle('help', () => shell.openExternal('https://dropovpn.vercel.app/#setup'));
   handle('clear-logs', () => { vpn.logs = []; });
   await window.loadURL(uiURL); publish();
   importsReady = true; await flushProfileFiles();

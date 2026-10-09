@@ -1,9 +1,14 @@
 {
   "name": "dropovpn",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "OpenVPN client for macOS and Windows with automatic reconnection and encrypted password storage.",
-  "repository": { "type": "git", "url": "git+https://github.com/samnimoh/dropovpn.git" },
-  "bugs": { "url": "https://github.com/samnimoh/dropovpn/issues" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samnimoh/dropovpn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/samnimoh/dropovpn/issues"
+  },
   "main": "electron/main.mjs",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && node scripts/start.mjs --dev\"",
@@ -11,12 +16,21 @@
     "build": "tsc --noEmit && vite build",
     "test": "node --test tests/*.test.mjs",
     "check": "npm run build && npm test",
-    "pack:mac": "npm run build && electron-builder --mac --dir",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win",
-    "test:electron": "npm run build && node scripts/smoke.mjs"
+    "pack:mac": "npm run runtime:mac && npm run build && electron-builder --mac --dir",
+    "dist:mac": "npm run runtime:mac && npm run build && electron-builder --mac",
+    "dist:win": "npm run runtime:win && npm run build && electron-builder --win",
+    "test:electron": "npm run build && node scripts/smoke.mjs",
+    "runtime:mac": "node scripts/build-runtime-mac.mjs",
+    "runtime:win": "node scripts/prepare-runtime-win.mjs"
   },
-  "keywords": ["openvpn", "vpn", "electron", "macos", "windows", "auto-reconnect"],
+  "keywords": [
+    "openvpn",
+    "vpn",
+    "electron",
+    "macos",
+    "windows",
+    "auto-reconnect"
+  ],
   "author": "DropoVPN",
   "license": "MIT",
   "type": "module",
@@ -58,19 +72,40 @@
         "zip"
       ],
       "hardenedRuntime": true,
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "extraResources": [
+        {
+          "from": "vendor/darwin-${arch}/openvpn",
+          "to": "openvpn"
+        }
+      ],
+      "minimumSystemVersion": "13.0"
     },
     "win": {
       "target": [
         "nsis"
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.png",
+      "extraResources": [
+        {
+          "from": "vendor/win32-${arch}/openvpn",
+          "to": "openvpn"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": false
+      "perMachine": true,
+      "include": "build/installer.nsh",
+      "runAfterFinish": false
     },
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "extraResources": [
+      {
+        "from": "THIRD-PARTY-NOTICES.txt",
+        "to": "THIRD-PARTY-NOTICES.txt"
+      }
+    ]
   }
 }

@@ -1,0 +1,21 @@
+DropoVPN includes separately licensed OpenVPN runtime components.
+The DropoVPN application source remains MIT licensed.
+
+macOS runtime:
+  OpenVPN 2.7.8 — GPL-2.0 with the upstream OpenSSL linking exception.
+  OpenSSL 3.6.5 — Apache License 2.0.
+  LZO 2.10 — GNU General Public License version 2 or later.
+  LZ4 1.10.0 library — BSD 2-Clause License.
+  License texts are included in Resources/openvpn/licenses.
+
+Windows setup:
+  The unmodified official OpenVPN Community 2.7.8-I001 x64 MSI is included.
+  Its license notices are retained inside the MSI and installed OpenVPN folder.
+  DropoVPN installs the OpenVPN engine and signed TAP-Windows6 network driver.
+  OpenVPN is shared system software and is not removed with DropoVPN.
+
+Corresponding source archives, upstream notices, and the build instructions
+for the redistributed components are provided with the same release:
+https://github.com/samnimoh/dropovpn/releases
+
+OpenVPN is a trademark of OpenVPN Inc. DropoVPN is an independent project.

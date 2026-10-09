@@ -17,6 +17,15 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - if: runner.os == 'Windows'
+        run: npm run runtime:win
+      - if: runner.os == 'Windows'
+        name: Install and verify the included OpenVPN runtime
+        shell: powershell
+        run: |
+          & ./build/install-openvpn.ps1 -RuntimeDirectory (Resolve-Path vendor/win32-x64/openvpn).Path
+          if ($LASTEXITCODE -notin @(0,3010,1641)) { throw 'OpenVPN installation failed' }
+          exit 0
       - run: npm run check
       - run: npm run test:electron
       - if: runner.os == 'macOS'
@@ -25,6 +34,16 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - if: runner.os == 'Windows'
         run: npm run dist:win -- --publish never
+      - if: runner.os == 'Windows'
+        name: Test the complete DropoVPN installer
+        shell: powershell
+        run: |
+          $installer = Get-ChildItem release/DropoVPN-*-win-x64.exe | Select-Object -First 1
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -notin @(0,3010)) { throw "DropoVPN setup failed: $($process.ExitCode)" }
+          if (-not (Test-Path "$env:ProgramFiles/DropoVPN/DropoVPN.exe")) { throw 'DropoVPN application is missing' }
+          if (-not (Test-Path "$env:ProgramFiles/OpenVPN/bin/openvpn.exe")) { throw 'OpenVPN engine is missing' }
+          if (-not (Test-Path 'HKLM:/SYSTEM/CurrentControlSet/Services/tap0901')) { throw 'TAP network driver is missing' }
       - uses: actions/upload-artifact@v4
         with:
           name: DropoVPN-${{ runner.os }}

@@ -1,7 +1,7 @@
 export type Profile = { id: string; name: string; server: string; protocol: string; requiresAuth: boolean; hasCredentials: boolean; createdAt: string };
 export type Settings = { autoReconnect: boolean; launchAtLogin: boolean; minimizeToTray: boolean; enginePath: string };
 export type Connection = { status: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'credentials-required' | 'disconnecting' | 'error'; profileId: string | null; connectedAt: string | null; localIp: string | null; remoteIp: string | null; received: number; sent: number; reconnects: number; message: string; prompt: string | null };
-export type Engine = { available: boolean; path: string; version: string | null };
+export type Engine = { available: boolean; path: string; version: string | null; bundled?: boolean };
 export type Snapshot = { profiles: Profile[]; settings: Settings; connection: Connection; logs: { id: string; time: string; message: string; level: string }[]; engine: Engine; platform: string; vaultAvailable: boolean; version: string };
 export type API = {
   snapshot(): Promise<Snapshot>; importProfiles(): Promise<string[]>; remove(id: string): Promise<void>; rename(id: string, name: string): Promise<void>;

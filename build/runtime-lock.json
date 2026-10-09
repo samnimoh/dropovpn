@@ -1,0 +1,6 @@
+{
+  "openvpn": { "version": "2.7.8", "file": "openvpn-2.7.8.tar.gz", "url": "https://github.com/OpenVPN/openvpn/releases/download/v2.7.8/openvpn-2.7.8.tar.gz", "sha256": "c070d1d2440b5a6fca6c2c68645c98cd492116ac36ef4f0946177115532c8e36" },
+  "openssl": { "version": "3.6.5", "file": "openssl-3.6.5.tar.gz", "url": "https://github.com/openssl/openssl/releases/download/openssl-3.6.5/openssl-3.6.5.tar.gz", "sha256": "a2157c2830efdec3788939b00c9b0638306d3f0bbb76dc4832ee503bb397df98" },
+  "lzo": { "version": "2.10", "file": "lzo-2.10.tar.gz", "url": "https://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz", "sha256": "c0f892943208266f9b6543b3ae308fab6284c5c90e627931446fb49b4221a072" },
+  "lz4": { "version": "1.10.0", "file": "lz4-1.10.0.tar.gz", "url": "https://github.com/lz4/lz4/archive/refs/tags/v1.10.0.tar.gz", "sha256": "537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b" }
+}
