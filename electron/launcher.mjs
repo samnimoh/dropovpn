@@ -60,6 +60,8 @@ export function launchOpenVPN({ binary, config, port, token, platform = process.
   } else {
     const copy = Object.entries(files).map(([name, content]) => `Copy-Item -LiteralPath ${psQuote(path.join(stage, name))} -Destination (Join-Path $runtime '${name}'); if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $runtime '${name}')).Hash -ne '${hash(content)}') { throw 'Profile changed during elevation' }`).join('\n');
     const inner = `$ErrorActionPreference='Stop'
+$env:PSModulePath=(Join-Path $PSHOME 'Modules')+';'+$env:PSModulePath
+Import-Module Microsoft.PowerShell.Utility,Microsoft.PowerShell.Management
 $runtime=Join-Path $env:ProgramData ('DropoVPN-'+[guid]::NewGuid().ToString())
 try {
   New-Item -ItemType Directory -Path $runtime | Out-Null
