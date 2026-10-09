@@ -8,6 +8,7 @@ if (process.platform !== 'darwin') throw new Error('Build the macOS runtime on m
 const arch = process.argv[2] || process.arch;
 if (!['arm64', 'x64'].includes(arch)) throw new Error('Supported architectures: arm64, x64.');
 const targetArch = arch === 'x64' ? 'x86_64' : 'arm64';
+const host = arch === 'x64' ? 'x86_64-apple-darwin' : 'aarch64-apple-darwin';
 const directory = path.join(root, 'vendor', `build-mac-${arch}`);
 const prefix = path.join(directory, 'prefix');
 const output = path.join(root, 'vendor', `darwin-${arch}`, 'openvpn');
@@ -30,11 +31,11 @@ const build = (name, command, args, extra = {}) => run(command, args, { cwd: sou
 build('openssl', 'perl', ['Configure', arch === 'arm64' ? 'darwin64-arm64-cc' : 'darwin64-x86_64-cc', 'no-shared', 'no-tests', 'no-module', 'no-dso', `--prefix=${prefix}`, '--libdir=lib']);
 build('openssl', 'make', ['-j', jobs]);
 build('openssl', 'make', ['install_sw']);
-build('lzo', './configure', [`--prefix=${prefix}`, '--disable-shared', '--enable-static', `--host=${targetArch}-apple-darwin`]);
+build('lzo', './configure', [`--prefix=${prefix}`, '--disable-shared', '--enable-static', `--host=${host}`]);
 build('lzo', 'make', ['-j', jobs]);
 build('lzo', 'make', ['install']);
 build('lz4', 'make', ['-C', 'lib', '-j', jobs, 'BUILD_SHARED=no', 'BUILD_STATIC=yes', `PREFIX=${prefix}`, 'install']);
-build('openvpn', './configure', [`--prefix=${prefix}`, '--disable-dco', '--disable-dns-updown-by-default', '--disable-plugins', '--disable-plugin-auth-pam', '--disable-plugin-down-root', '--disable-pkcs11', '--with-openssl-engine=no', '--disable-debug', '--disable-dependency-tracking', `--host=${targetArch}-apple-darwin`], { OPENSSL_CFLAGS: `-I${prefix}/include`, OPENSSL_LIBS: `-L${prefix}/lib -lssl -lcrypto`, LZO_CFLAGS: `-I${prefix}/include`, LZO_LIBS: `-L${prefix}/lib -llzo2`, LZ4_CFLAGS: `-I${prefix}/include`, LZ4_LIBS: `-L${prefix}/lib -llz4` });
+build('openvpn', './configure', [`--prefix=${prefix}`, '--disable-dco', '--disable-dns-updown-by-default', '--disable-plugins', '--disable-plugin-auth-pam', '--disable-plugin-down-root', '--disable-pkcs11', '--with-openssl-engine=no', '--disable-debug', '--disable-dependency-tracking', `--host=${host}`], { OPENSSL_CFLAGS: `-I${prefix}/include`, OPENSSL_LIBS: `-L${prefix}/lib -lssl -lcrypto`, LZO_CFLAGS: `-I${prefix}/include`, LZO_LIBS: `-L${prefix}/lib -llzo2`, LZ4_CFLAGS: `-I${prefix}/include`, LZ4_LIBS: `-L${prefix}/lib -llz4` });
 build('openvpn', 'make', ['-j', jobs]);
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(path.join(output, 'licenses'), { recursive: true });

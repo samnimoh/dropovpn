@@ -1,5 +1,7 @@
 param([string]$RuntimeDirectory = $PSScriptRoot, [switch]$VerifyOnly)
 $ErrorActionPreference = 'Stop'
+$env:PSModulePath = (Join-Path $PSHOME 'Modules') + ';' + $env:PSModulePath
+Import-Module Microsoft.PowerShell.Utility, Microsoft.PowerShell.Security, Microsoft.PowerShell.Management
 $log = Join-Path $env:TEMP 'DropoVPN-OpenVPN-setup.log'
 try {
   $manifest = Get-Content -LiteralPath (Join-Path $RuntimeDirectory 'manifest.json') -Raw | ConvertFrom-Json
