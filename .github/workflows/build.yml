@@ -70,6 +70,10 @@ jobs:
           if (-not (Test-Path "$env:ProgramFiles/DropoVPN/DropoVPN.exe")) { throw 'DropoVPN application is missing' }
           if (-not (Test-Path "$env:ProgramFiles/OpenVPN/bin/openvpn.exe")) { throw 'OpenVPN engine is missing' }
           if (-not (Test-Path 'HKLM:/SYSTEM/CurrentControlSet/Services/tap0901')) { throw 'TAP network driver is missing' }
+      - if: runner.os == 'Windows'
+        name: Test installing an in-app update
+        timeout-minutes: 10
+        run: node scripts/test-windows-update.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: DropoVPN-${{ runner.os }}

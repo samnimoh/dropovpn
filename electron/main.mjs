@@ -151,7 +151,7 @@ async function start() {
   const pending = store.data.update.pending;
   if (pending) {
     updateResult = { ok: pending === app.getVersion(), version: pending };
-    vpn.log(updateResult.ok ? `Updated to DropoVPN ${pending}.` : `DropoVPN ${pending} was not installed. Drag the new version from Finder into Applications to finish.`, updateResult.ok ? 'info' : 'warning');
+    vpn.log(updateResult.ok ? `Updated to DropoVPN ${pending}.` : `DropoVPN ${pending} was not installed. ${process.platform === 'win32' ? 'If the administrator prompt was declined, choose Restart to update again.' : 'Drag the new version from Finder into Applications to finish.'}`, updateResult.ok ? 'info' : 'warning');
     store.data.update.pending = null; store.persist();
   }
   window = new BrowserWindow({ width: 1160, height: 820, minWidth: 900, minHeight: 680, title: 'DropoVPN', backgroundColor: '#f6f7f9', titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden', trafficLightPosition: { x: 22, y: 23 }, ...(process.platform === 'win32' ? { titleBarOverlay: { color: '#f6f7f9', symbolColor: '#333b4b', height: 44 } } : {}), webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } });
