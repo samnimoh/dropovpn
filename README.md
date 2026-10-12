@@ -8,7 +8,7 @@ An open-source desktop app for macOS and Windows that brings three things togeth
 
 The interface uses React and TypeScript; the Electron main process manages OpenVPN, the mesh and credential storage.
 
-**[Visit the download website](https://dropovpn.vercel.app)** · [Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.4.0) · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
+**[Visit the download website](https://dropovpn.vercel.app)** · [Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.4.1) · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
 
 ![DropoVPN connection screen with example profiles, and Device mesh and Public URLs in the sidebar](website/assets/screenshots/connection.png)
 
@@ -16,12 +16,12 @@ The interface uses React and TypeScript; the Electron main process manages OpenV
 
 | Platform | Installer | Architecture |
 | --- | --- | --- |
-| macOS | [DMG](https://github.com/samnimoh/dropovpn/releases/download/v0.4.0/DropoVPN-0.4.0-mac-arm64.dmg) · [ZIP](https://github.com/samnimoh/dropovpn/releases/download/v0.4.0/DropoVPN-0.4.0-mac-arm64.zip) | Apple Silicon / ARM64 |
-| Windows | [Installer](https://github.com/samnimoh/dropovpn/releases/download/v0.4.0/DropoVPN-0.4.0-win-x64.exe) | Intel / AMD x64 |
+| macOS | [DMG](https://github.com/samnimoh/dropovpn/releases/download/v0.4.1/DropoVPN-0.4.1-mac-arm64.dmg) · [ZIP](https://github.com/samnimoh/dropovpn/releases/download/v0.4.1/DropoVPN-0.4.1-mac-arm64.zip) | Apple Silicon / ARM64 |
+| Windows | [Installer](https://github.com/samnimoh/dropovpn/releases/download/v0.4.1/DropoVPN-0.4.1-win-x64.exe) | Intel / AMD x64 |
 
-[Release notes](https://github.com/samnimoh/dropovpn/releases/tag/v0.4.0) · [SHA-256 checksums](https://github.com/samnimoh/dropovpn/releases/download/v0.4.0/SHA256SUMS.txt)
+[Release notes](https://github.com/samnimoh/dropovpn/releases/tag/v0.4.1) · [SHA-256 checksums](https://github.com/samnimoh/dropovpn/releases/download/v0.4.1/SHA256SUMS.txt)
 
-**Version 0.4.0 is an unsigned public preview.** macOS notarization is not included, so the first time you open DropoVPN, macOS says it could not verify the app. Choose **Done**, then open **System Settings → Privacy & Security** and choose **Open Anyway** next to DropoVPN. Windows SmartScreen may ask you to choose **More info → Run anyway**. The installers include the OpenVPN runtime. Windows setup installs the signed TAP-Windows6 network driver and requires administrator permission. Live VPN routing and reconnection still require testing with your own server. There is no Intel Mac installer in this release.
+**Version 0.4.1 is an unsigned public preview.** macOS notarization is not included, so the first time you open DropoVPN, macOS says it could not verify the app. Choose **Done**, then open **System Settings → Privacy & Security** and choose **Open Anyway** next to DropoVPN. Windows SmartScreen may ask you to choose **More info → Run anyway**. The installers include the OpenVPN runtime. Windows setup installs the signed TAP-Windows6 network driver and requires administrator permission. Live VPN routing and reconnection still require testing with your own server. There is no Intel Mac installer in this release.
 
 DropoVPN is a client, not a VPN service. OpenVPN is included: macOS uses the engine inside the app; Windows installs the official OpenVPN engine and signed TAP-Windows6 driver in the same setup flow. Bring a working `.ovpn` profile. There is no kill switch; traffic is not blocked during reconnection.
 
@@ -223,7 +223,7 @@ A real VPN profile/server is required to validate end-to-end routing, DNS and re
 - [OpenVPN 2.7 manual](https://openvpn.net/community-docs/community-articles/openvpn-2-7-manual.html)
 - [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage)
 
-Application source is MIT licensed. OpenVPN and its runtime dependencies retain their own licenses. See [third-party notices](THIRD-PARTY-NOTICES.txt). Each release includes [corresponding runtime sources and build recipes](https://github.com/samnimoh/dropovpn/releases/download/v0.4.0/DropoVPN-0.4.0-runtime-sources.tar.gz).
+Application source is MIT licensed. OpenVPN and its runtime dependencies retain their own licenses. See [third-party notices](THIRD-PARTY-NOTICES.txt). Each release includes [corresponding runtime sources and build recipes](https://github.com/samnimoh/dropovpn/releases/download/v0.4.1/DropoVPN-0.4.1-runtime-sources.tar.gz).
 
 The pinned downloads are recorded in `build/runtime-lock.json` and `build/windows-runtime.json`. `npm run runtime:mac` builds the engine from source using Xcode command line tools and pkg-config. `npm run runtime:win` prepares the signed upstream MSI. Run `node scripts/package-runtime-sources.mjs` before publishing installers to produce the matching source archive.
 
