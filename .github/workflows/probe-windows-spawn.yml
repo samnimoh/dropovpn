@@ -1,0 +1,45 @@
+name: Probe detached PowerShell on Windows
+# Temporary: find which way of starting a hidden PowerShell from Electron's
+# Node.js survives the parent exiting and can elevate. Removed once settled.
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Probe
+        shell: bash
+        run: |
+          cat > probe.mjs <<'SCRIPT'
+          import { spawn } from 'node:child_process';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const dir = path.resolve('out'); fs.mkdirSync(dir, { recursive: true });
+          const ps = path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+          const enc = text => Buffer.from(text, 'utf16le').toString('base64');
+          const write = name => `Set-Content -LiteralPath '${path.join(dir, name)}' -Value 'ran'`;
+          const elevated = name => `Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c','echo ran > "${path.join(dir, name)}"') -Verb RunAs -Wait -WindowStyle Hidden`;
+          const args = (script, hidden = true) => ['-NoProfile', '-NonInteractive', ...(hidden ? ['-WindowStyle', 'Hidden'] : []), '-EncodedCommand', enc(script)];
+          const variants = {
+            'detached+hide': () => spawn(ps, args(write('detached+hide')), { detached: true, stdio: 'ignore', windowsHide: true }),
+            'detached': () => spawn(ps, args(write('detached')), { detached: true, stdio: 'ignore' }),
+            'detached+hide, no -WindowStyle': () => spawn(ps, args(write('detached+hide, no -WindowStyle'), false), { detached: true, stdio: 'ignore', windowsHide: true }),
+            'attached+hide': () => spawn(ps, args(write('attached+hide')), { stdio: 'ignore', windowsHide: true }),
+            'cmd start': () => spawn('cmd.exe', ['/d', '/c', 'start', '""', '/b', ps, ...args(write('cmd start'))], { detached: true, stdio: 'ignore', windowsHide: true }),
+            'detached+hide, elevated': () => spawn(ps, args(elevated('detached+hide, elevated')), { detached: true, stdio: 'ignore', windowsHide: true }),
+            'cmd start, elevated': () => spawn('cmd.exe', ['/d', '/c', 'start', '""', '/b', ps, ...args(elevated('cmd start, elevated'))], { detached: true, stdio: 'ignore', windowsHide: true }),
+          };
+          for (const [name, run] of Object.entries(variants)) { const child = run(); child.on('error', error => console.log(name, 'spawn error', error.code)); child.unref(); }
+          // Exit like DropoVPN does, then check from a separate process which ones ran.
+          setTimeout(() => process.exit(0), 500);
+          SCRIPT
+          node probe.mjs
+          sleep 25
+          for name in 'detached+hide' 'detached' 'detached+hide, no -WindowStyle' 'attached+hide' 'cmd start' 'detached+hide, elevated' 'cmd start, elevated'; do
+            if [ -f "out/$name" ]; then echo "RAN      $name"; else echo "NOT RUN  $name"; fi
+          done
