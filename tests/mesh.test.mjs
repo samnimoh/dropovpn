@@ -274,6 +274,7 @@ test('the relay limits connections per address and paces devices that exceed the
   const start = Date.now();
   for (let index = 0; index < 8; index++) sender.send(Buffer.concat([Buffer.from([1]), Buffer.from(receiverId, 'hex'), randomBytes(32 * 1024)]));
   await until(() => received >= 8 * (32 * 1024 + 17), 10000);
-  assert.ok(Date.now() - start >= 2000, `256 KB at 64 KB/s arrived in ${Date.now() - start} ms`);
+  // One second of burst plus at most one 64 KB read before the pause; the rest is paced.
+  assert.ok(Date.now() - start >= 1800, `256 KB at 64 KB/s arrived in ${Date.now() - start} ms`);
   for (const ws of sockets) ws.close();
 });

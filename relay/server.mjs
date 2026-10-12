@@ -110,7 +110,7 @@ export function createRelay({ token, publicDomain = '', publicScheme = 'https', 
   }
   function join(mesh, device, ws, address) {
     const members = meshes.get(mesh) || new Map(); meshes.set(mesh, members);
-    const previous = members.get(device), agent = { mesh, device, ws, address, tunnels: new Map(), window: 0, used: 0 };
+    const previous = members.get(device), agent = { mesh, device, ws, address, tunnels: new Map(), tokens: deviceRate, refilled: Date.now() };
     agents++; addresses.set(address, (addresses.get(address) || 0) + 1);
     agent.mux = new Mux({ send: frame => ws.send(Buffer.concat([Buffer.from([TUNNEL]), frame])), initiator: true });
     agent.mux.on('stream', stream => stream.destroy(new Error('Devices cannot open relay streams.')));
@@ -135,15 +135,16 @@ export function createRelay({ token, publicDomain = '', publicScheme = 'https', 
     if (announce && current) for (const other of members.values()) other.ws.send(JSON.stringify({ type: 'left', peer: agent.device }));
   }
   // A device that sends faster than its budget is paused, not dropped, so its
-  // end-to-end encrypted sessions stay intact while the relay's bandwidth stays bounded.
+  // end-to-end encrypted sessions stay intact while the relay's bandwidth stays
+  // bounded. The bucket holds one second of budget; data read before a pause
+  // takes effect becomes debt that lengthens the pause, so the long-run rate holds.
   function meter(agent, size) {
     if (!deviceRate) return;
-    const second = Math.floor(Date.now() / 1000);
-    if (agent.window !== second) { agent.window = second; agent.used = 0; }
-    agent.used += size;
-    if (agent.used > deviceRate && !agent.paused) {
+    const now = Date.now();
+    agent.tokens = Math.min(deviceRate, agent.tokens + (now - agent.refilled) * deviceRate / 1000) - size; agent.refilled = now;
+    if (agent.tokens < 0 && !agent.paused) {
       agent.paused = true; agent.ws.socket.pause();
-      setTimeout(() => { agent.paused = false; agent.ws.socket.resume(); }, 1000 - (Date.now() % 1000)).unref?.();
+      setTimeout(() => { agent.paused = false; agent.ws.socket.resume(); }, Math.ceil(-agent.tokens / deviceRate * 1000)).unref?.();
     }
   }
   function route(agent, data) {
