@@ -45,6 +45,15 @@ jobs:
       - if: runner.os == 'Windows'
         run: npm run dist:win -- --publish never
       - if: runner.os == 'macOS'
+        name: Verify the macOS app signature
+        # An unsigned or partly signed bundle opens locally but macOS reports a
+        # downloaded copy as damaged. The app must carry a complete signature.
+        run: |
+          app=release/mac-arm64/DropoVPN.app
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign -dv "$app" 2>&1 | grep -q 'Identifier=com.dropovpn.desktop'
+          hdiutil verify release/DropoVPN-*-mac-arm64.dmg
+      - if: runner.os == 'macOS'
         name: Test the bundled macOS engine
         run: DROPOVPN_ENGINE="$PWD/vendor/darwin-$(node -p process.arch)/openvpn/openvpn" npm test
       - if: runner.os == 'Windows'
