@@ -187,7 +187,11 @@ export class Updater extends EventEmitter {
       this.spawnProcess('/bin/sh', [script, String(pid), bundle.path, app], { detached: true, stdio: 'ignore' }).unref();
     } else {
       const command = Buffer.from(windowsInstaller({ pid, installer: file, executable: this.execPath, log: path.join(path.dirname(file), 'install.log') }), 'utf16le').toString('base64');
-      this.spawnProcess(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', command], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+      const system = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
+      // PowerShell started directly as a detached process never runs its
+      // script. Started through cmd's "start", it runs, outlives DropoVPN, and
+      // can still ask for administrator permission.
+      this.spawnProcess(path.join(system, 'cmd.exe'), ['/d', '/c', 'start', '""', '/b', path.join(system, 'WindowsPowerShell', 'v1.0', 'powershell.exe'), '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', command], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     }
     this.update({ status: 'installing' });
     return true;

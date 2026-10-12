@@ -75,7 +75,8 @@ test('downloads, verifies and installs a Windows update after asking', async t =
   assert.equal(sha(fs.readFileSync(updater.prepared.file)), sha(installer));
   assert.equal(updater.install({ pid: 4242 }), true);
   assert.equal(updater.state.status, 'installing');
-  assert.match(spawned[0].command, /powershell\.exe$/); assert.equal(spawned[0].options.detached, true);
+  assert.match(spawned[0].command, /cmd\.exe$/); assert.equal(spawned[0].options.detached, true);
+  assert.deepEqual(spawned[0].args.slice(0, 5), ['/d', '/c', 'start', '""', '/b']); assert.match(spawned[0].args[5], /powershell\.exe$/);
   const script = Buffer.from(spawned[0].args.at(-1), 'base64').toString('utf16le');
   assert.match(script, /Wait-Process -Id 4242/); assert.match(script, /-Verb RunAs -Wait/);
   assert.ok(script.includes(`'${path.join(path.dirname(updater.prepared.file), 'install.log')}'`));
