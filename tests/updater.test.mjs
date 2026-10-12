@@ -78,6 +78,7 @@ test('downloads, verifies and installs a Windows update after asking', async t =
   assert.match(spawned[0].command, /powershell\.exe$/); assert.equal(spawned[0].options.detached, true);
   const script = Buffer.from(spawned[0].args.at(-1), 'base64').toString('utf16le');
   assert.match(script, /Wait-Process -Id 4242/); assert.match(script, /-Verb RunAs -Wait/);
+  assert.ok(script.includes(`'${path.join(path.dirname(updater.prepared.file), 'install.log')}'`));
   assert.ok(script.includes(`'${updater.prepared.file}'`)); assert.match(script, /Start-Process -FilePath 'C:\\Program Files\\DropoVPN\\DropoVPN.exe'/);
 });
 

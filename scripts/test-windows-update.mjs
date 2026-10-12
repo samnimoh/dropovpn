@@ -9,11 +9,18 @@ import { Updater } from '../electron/updater.mjs';
 // exactly as "Restart to update" does. DropoVPN must quit, reinstall silently
 // with administrator rights, and reopen.
 const executable = path.join(process.env.ProgramFiles, 'DropoVPN', 'DropoVPN.exe');
-const installer = path.resolve('release', fs.readdirSync('release').find(name => /^DropoVPN-.*-win-x64\.exe$/.test(name)));
-const { version } = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const installer = path.resolve(process.argv[2] || path.join('release', fs.readdirSync('release').find(name => /^DropoVPN-.*-win-x64\.exe$/.test(name))));
+const version = installer.match(/DropoVPN-(\d+\.\d+\.\d+)-win/)[1];
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const running = () => execFileSync('tasklist', ['/FI', 'IMAGENAME eq DropoVPN.exe', '/FO', 'CSV', '/NH']).toString().split(/\r?\n/).map(line => line.split('","')[1]).filter(Boolean).map(Number);
-async function until(check, ms, what) { const start = Date.now(); while (!check()) { if (Date.now() - start > ms) throw new Error(`Timed out: ${what}`); await pause(1000); } }
+async function until(check, ms, what) { const start = Date.now(); while (!check()) { if (Date.now() - start > ms) { report(); throw new Error(`Timed out: ${what}`); } await pause(1000); } }
+// What the install step recorded, and what was running, when something times out.
+function report() {
+  const log = path.join(path.dirname(installer), 'install.log');
+  console.log('--- install.log'); console.log(fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '(none)');
+  console.log('--- processes'); console.log(execFileSync('tasklist', ['/FO', 'TABLE']).toString().split(/\r?\n/).filter(line => /DropoVPN|powershell|msiexec|Un_|Au_/i.test(line)).join('\n') || '(none)');
+  console.log('--- install folder'); try { console.log(fs.readdirSync(path.dirname(executable)).join(', ')); } catch (error) { console.log(error.message); }
+}
 
 // The old version's uninstaller clears the install folder, so a marker left
 // there disappears only if the update really reinstalled DropoVPN.

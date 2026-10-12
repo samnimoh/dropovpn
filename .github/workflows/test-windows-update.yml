@@ -1,0 +1,32 @@
+name: Test the Windows in-app update
+# A quick check of the updater's Windows install step against a published
+# installer, without building: install it, then update to it from inside the app.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published version whose installer to use
+        required: true
+        default: 0.4.1
+permissions:
+  contents: read
+jobs:
+  update:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install the published DropoVPN
+        shell: powershell
+        run: |
+          gh release download "v$env:VERSION" --repo $env:GITHUB_REPOSITORY --pattern "DropoVPN-$env:VERSION-win-x64.exe" --dir release
+          $setup = Start-Process -FilePath (Resolve-Path "release/DropoVPN-$env:VERSION-win-x64.exe").Path -ArgumentList '/S' -Wait -PassThru
+          if ($setup.ExitCode -notin @(0,3010)) { throw "DropoVPN setup failed: $($setup.ExitCode)" }
+      - name: Update it from inside the app
+        run: node scripts/test-windows-update.mjs "release/DropoVPN-${{ inputs.version }}-win-x64.exe"

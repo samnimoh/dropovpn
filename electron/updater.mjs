@@ -70,12 +70,18 @@ fi
 exit 1
 `;
 
-export function windowsInstaller({ pid, installer, executable }) {
+export function windowsInstaller({ pid, installer, executable, log }) {
   // Wait for DropoVPN to quit, run the installer with administrator approval,
-  // then reopen DropoVPN whether or not the update was approved.
-  return `$ErrorActionPreference='SilentlyContinue'
-Wait-Process -Id ${Number(pid)} -Timeout 60
-try { $setup = Start-Process -FilePath ${psQuote(installer)} -ArgumentList @('/S','--updated') -Verb RunAs -Wait -PassThru } catch { }
+  // then reopen DropoVPN whether or not the update was approved. Each step is
+  // logged beside the installer, so a failed update can say what happened.
+  return `$ErrorActionPreference='Continue'
+function Note($text) { Add-Content -LiteralPath ${psQuote(log)} -Value ((Get-Date).ToString('s') + ' ' + $text) }
+Note 'Waiting for DropoVPN to quit.'
+Wait-Process -Id ${Number(pid)} -Timeout 60 -ErrorAction SilentlyContinue
+Note 'Starting the installer.'
+try { $setup = Start-Process -FilePath ${psQuote(installer)} -ArgumentList @('/S','--updated') -Verb RunAs -Wait -PassThru -ErrorAction Stop; Note ('Installer finished with exit code ' + $setup.ExitCode + '.') }
+catch { Note ('Installer did not run: ' + $_.Exception.Message) }
+Note 'Reopening DropoVPN.'
 Start-Process -FilePath ${psQuote(executable)}`;
 }
 
@@ -180,7 +186,7 @@ export class Updater extends EventEmitter {
       fs.writeFileSync(script, MAC_INSTALLER, { mode: 0o700 });
       this.spawnProcess('/bin/sh', [script, String(pid), bundle.path, app], { detached: true, stdio: 'ignore' }).unref();
     } else {
-      const command = Buffer.from(windowsInstaller({ pid, installer: file, executable: this.execPath }), 'utf16le').toString('base64');
+      const command = Buffer.from(windowsInstaller({ pid, installer: file, executable: this.execPath, log: path.join(path.dirname(file), 'install.log') }), 'utf16le').toString('base64');
       this.spawnProcess(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', command], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
     }
     this.update({ status: 'installing' });

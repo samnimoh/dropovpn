@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, safeStorage, Tray, Menu, nativeImage, powerMonitor, shell, clipboard } from 'electron';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -151,6 +152,8 @@ async function start() {
   const pending = store.data.update.pending;
   if (pending) {
     updateResult = { ok: pending === app.getVersion(), version: pending };
+    // On Windows the install step records each stage; keep its outcome in Activity.
+    try { const outcome = fs.readFileSync(path.join(app.getPath('userData'), 'Updates', pending, 'install.log'), 'utf8').split(/\r?\n/).filter(line => /Installer /.test(line)).pop(); if (outcome) vpn.log(`Update: ${outcome.replace(/^\S+ /, '')}`, updateResult.ok ? 'info' : 'warning'); } catch { /* No log on macOS. */ }
     vpn.log(updateResult.ok ? `Updated to DropoVPN ${pending}.` : `DropoVPN ${pending} was not installed. ${process.platform === 'win32' ? 'If the administrator prompt was declined, choose Restart to update again.' : 'Drag the new version from Finder into Applications to finish.'}`, updateResult.ok ? 'info' : 'warning');
     store.data.update.pending = null; store.persist();
   }
