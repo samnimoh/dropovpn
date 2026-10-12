@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('dropovpn', {
   tunnelTools: () => invoke('tunnel-tools'),
   openLink: url => invoke('open-link', url),
   copyLink: url => invoke('copy-link', url),
+  updateCheck: () => invoke('update-check'),
+  updateDownload: () => invoke('update-download'),
+  updateInstall: () => invoke('update-install'),
+  updateDismiss: () => invoke('update-dismiss'),
+  updateResultDismiss: () => invoke('update-result-dismiss'),
+  updateNotes: () => invoke('update-notes'),
   onChange: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('dropovpn:changed', listener);

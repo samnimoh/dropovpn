@@ -63,3 +63,14 @@
 .mesh-device-text h2{font-size:19px}
 .peer-services,.peer-empty{margin-left:0}
 }
+.notice.success{border-color:#d7eadf;background:#eef7f2;color:#4f8a69}
+.update-banner{display:flex;align-items:center;gap:14px;border:1px solid #e3dbf1;background:linear-gradient(120deg,#fff 30%,#f6f2fc);border-radius:10px;padding:14px 16px;margin-bottom:17px;box-shadow:0 3px 10px #3e2a6408}
+.update-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.update-text strong{font-size:12px;font-weight:600;color:#3d3650}
+.update-text span{font-size:10px;color:#968ca6;line-height:1.5}
+.update-progress{height:5px;border-radius:5px;background:#ece6f6;overflow:hidden;margin-top:4px;max-width:420px}
+.update-progress i{display:block;height:100%;background:#8a6cc4;border-radius:5px;transition:width .3s}
+.update-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.update-actions .button{min-height:33px;padding:8px 13px}
+.update-banner.error{border-color:#eed7d5;background:#fdf6f5}
+@media(max-width:1000px){.update-banner{flex-wrap:wrap}.update-actions{width:100%;justify-content:flex-end}}

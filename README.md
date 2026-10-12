@@ -174,6 +174,17 @@ relay.example.com {
 
 The relay learns which devices are connected (random identifiers grouped by a one-way mesh identifier), when, and how much data they exchange. It cannot read mesh traffic. It does handle public URL traffic in the clear between TLS termination and the device, as any tunnel service does. Anyone with the relay token can connect devices and create public URLs, so keep it private.
 
+## Updates
+
+DropoVPN checks GitHub for a new release a few seconds after it starts and every six hours, and shows a banner when one is available. Nothing downloads until you choose **Download update**, and nothing installs until you choose **Restart to update**. Turn automatic checks off, or check now, under **Settings → Updates**.
+
+- **Only signed releases are offered.** Each release's `SHA256SUMS.txt` is signed in CI with an Ed25519 key. The app verifies that signature against the public key in [`electron/update-key.mjs`](electron/update-key.mjs), then checks the download against its signed checksum. On macOS it also checks the new app's identifier, version and code signature before installing. A tampered or unsigned release is never installed.
+- **macOS:** DropoVPN quits, replaces itself in place, and reopens. If it runs from its disk image or macOS doesn't allow the swap, the previous version stays and Finder shows the new one to drag into Applications.
+- **Windows:** the DropoVPN installer runs, asks for administrator permission, and reopens DropoVPN.
+- If the VPN is connected, DropoVPN asks before restarting, because the tunnel disconnects while it updates.
+
+Versions before 0.4.0 don't include the updater; install 0.4.0 once by hand.
+
 ## Security boundaries
 
 The Electron renderer is sandboxed, with context isolation, no Node.js integration, a restrictive Content Security Policy, no remote content, denied permissions, and a narrow validated IPC API. It never receives a saved password or a decrypted profile. Browser previews cannot connect to VPNs.
@@ -228,4 +239,4 @@ vercel --prod --yes --cwd website
 
 To refresh the public screenshots, run `npm run build && node scripts/screenshots.mjs` on macOS. The script launches isolated desktop sessions with synthetic profiles, a mesh on loopback through a local relay, and a stand-in `cloudflared`. It never starts a VPN connection, contacts the shared relay, or creates a public URL.
 
-For a new release, build and validate the installers, publish them together with SHA-256 checksums on GitHub, then update the versioned links in `website/index.html` and this README before redeploying. No automatic updater is included.
+For a new release, bump the version, push to `main`, create a draft release for the verified commit, and run **Stage verified installers in a draft release** with the build's run ID. It uploads the installers, the runtime sources and `SHA256SUMS.txt`, signed with the `UPDATE_SIGNING_KEY` repository secret as `SHA256SUMS.txt.sig`; the in-app updater only offers releases that carry it. Publish the release, then update the versioned links in `website/index.html` and this README before redeploying. Keep a backup of the signing key: without it, future releases need a new public key, shipped in a version installed by hand.

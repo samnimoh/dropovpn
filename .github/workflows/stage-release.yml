@@ -58,11 +58,14 @@ jobs:
           for file in "${files[@]}"; do test -f "$file"; done
           sha256sum "${files[@]}" > INSTALLER-SHA256SUMS.txt
           gh release upload "v$VERSION" "${files[@]}" INSTALLER-SHA256SUMS.txt --clobber
-      - name: Upload source archive and complete checksums
+      - name: Upload source archive and signed checksums
         env:
           VERSION: ${{ steps.release.outputs.version }}
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
         run: |
           cp installers/INSTALLER-SHA256SUMS.txt release/SHA256SUMS.txt
           cd release
           sha256sum "DropoVPN-$VERSION-runtime-sources.tar.gz" >> SHA256SUMS.txt
-          gh release upload "v$VERSION" "DropoVPN-$VERSION-runtime-sources.tar.gz" SHA256SUMS.txt --clobber
+          # The in-app updater installs only releases whose checksums carry this signature.
+          node ../scripts/sign-release.mjs SHA256SUMS.txt
+          gh release upload "v$VERSION" "DropoVPN-$VERSION-runtime-sources.tar.gz" SHA256SUMS.txt SHA256SUMS.txt.sig --clobber

@@ -11,6 +11,8 @@ import { MAX_SERVICES, MeshAgent, inUse, parseTarget } from './mesh.mjs';
 import { createInvite, parseInvite, validateRelayToken, validateRelayURL } from './meshcrypto.mjs';
 import { Tunnels } from './tunnels.mjs';
 import { DEFAULT_RELAY } from './relay-defaults.mjs';
+import { Updater } from './updater.mjs';
+import { UPDATE_PUBLIC_KEY } from './update-key.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const engineOptions = { resourcesPath: app.isPackaged ? process.resourcesPath : path.join(here, '../vendor', `${process.platform}-${process.arch}`) };
@@ -23,7 +25,7 @@ if (process.env.DROPOVPN_TEST_DATA && !app.isPackaged) app.setPath('userData', p
 // screenshot script points them at a local stand-in instead.
 const isolated = !!process.env.DROPOVPN_TEST_DATA && !app.isPackaged;
 const defaultRelay = !isolated ? DEFAULT_RELAY : process.env.DROPOVPN_TEST_RELAY ? { url: process.env.DROPOVPN_TEST_RELAY, token: process.env.DROPOVPN_TEST_RELAY_TOKEN || '' } : null;
-let window, tray, store, vpn, engine, mesh = null, tunnels, quitting = false;
+let window, tray, store, vpn, engine, mesh = null, tunnels, updater, updateTimers = [], updateDismissed = '', updateResult = null, quitting = false;
 let importsReady = false, importingFiles = false;
 const pendingImports = new Set();
 function queueProfileFiles(files, directory = process.cwd()) {
@@ -39,7 +41,15 @@ else {
 }
 
 function snapshot() {
-  return { profiles: store.list(), settings: store.data.settings, connection: { ...vpn.state }, logs: vpn.logs, engine, platform: process.platform, vaultAvailable: safeStorage.isEncryptionAvailable(), version: app.getVersion(), mesh: meshSnapshot(), tunnels: tunnels.snapshot() };
+  return { profiles: store.list(), settings: store.data.settings, connection: { ...vpn.state }, logs: vpn.logs, engine, platform: process.platform, vaultAvailable: safeStorage.isEncryptionAvailable(), version: app.getVersion(), mesh: meshSnapshot(), tunnels: tunnels.snapshot(), update: { ...updater.state, enabled: store.data.settings.autoUpdate, dismissed: !!updater.state.version && updateDismissed === updater.state.version, result: updateResult } };
+}
+// Updates are checked automatically only in the installed app (or against a
+// test feed), never from a development or test session.
+function scheduleUpdates() {
+  for (const timer of updateTimers) clearTimeout(timer);
+  updateTimers = [];
+  if (!store.data.settings.autoUpdate || (!app.isPackaged && !process.env.DROPOVPN_UPDATE_FEED)) return;
+  updateTimers.push(setTimeout(() => void updater.check(), 10000), setInterval(() => void updater.check(), 6 * 60 * 60 * 1000));
 }
 // The mesh key and relay token never leave the main process; the renderer
 // sees configuration and live state only.
@@ -55,6 +65,7 @@ function publish() {
       { label: 'Open DropoVPN', click: () => window.show() },
       { label: vpn.state.status === 'connected' ? 'Connected' : 'VPN: ' + vpn.state.status, enabled: false },
       { label: 'Disconnect', enabled: !!vpn.session || !!vpn.retryTimer || vpn.state.status === 'credentials-required', click: () => vpn.disconnect() },
+      ...(['available', 'ready'].includes(updater.state.status) ? [{ type: 'separator' }, { label: updater.state.status === 'ready' ? 'Restart to update DropoVPN' : `Update to DropoVPN ${updater.state.version}…`, click: () => window.show() }] : []),
       { type: 'separator' }, { label: 'Quit DropoVPN', click: () => app.quit() }
     ]));
   }
@@ -134,6 +145,15 @@ async function start() {
   store = new Store(app.getPath('userData'), safeStorage); engine = await detectEngine(store.data.settings.enginePath, engineOptions);
   vpn = new VPN({ store }); vpn.on('change', publish);
   tunnels = new Tunnels({ getMesh: () => mesh, log: (message, level) => vpn.log(message, level) }); tunnels.on('change', publish);
+  // A test feed may point elsewhere, but updates still need the release signature.
+  updater = new Updater({ version: app.getVersion(), publicKey: UPDATE_PUBLIC_KEY, directory: path.join(app.getPath('userData'), 'Updates'), feed: process.env.DROPOVPN_UPDATE_FEED || undefined, log: (message, level) => vpn.log(message, level) });
+  updater.on('change', publish);
+  const pending = store.data.update.pending;
+  if (pending) {
+    updateResult = { ok: pending === app.getVersion(), version: pending };
+    vpn.log(updateResult.ok ? `Updated to DropoVPN ${pending}.` : `DropoVPN ${pending} was not installed. Drag the new version from Finder into Applications to finish.`, updateResult.ok ? 'info' : 'warning');
+    store.data.update.pending = null; store.persist();
+  }
   window = new BrowserWindow({ width: 1160, height: 820, minWidth: 900, minHeight: 680, title: 'DropoVPN', backgroundColor: '#f6f7f9', titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden', trafficLightPosition: { x: 22, y: 23 }, ...(process.platform === 'win32' ? { titleBarOverlay: { color: '#f6f7f9', symbolColor: '#333b4b', height: 44 } } : {}), webPreferences: { preload: path.join(here, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event, url) => { if (url !== uiURL) event.preventDefault(); });
@@ -178,6 +198,7 @@ async function start() {
     if (value.launchAtLogin && !app.isPackaged) throw new Error('Install the packaged DropoVPN app before enabling Open at login.');
     if ('launchAtLogin' in value && typeof value.launchAtLogin === 'boolean') app.setLoginItemSettings({ openAtLogin: value.launchAtLogin });
     store.settings(value);
+    if ('autoUpdate' in value) scheduleUpdates();
   });
   handle('engine-check', async () => { engine = await detectEngine(store.data.settings.enginePath, engineOptions); return engine; });
   handle('engine-select', async () => {
@@ -254,12 +275,29 @@ async function start() {
   });
   handle('tunnel-stop', value => tunnels.stop(shortId(value)));
   handle('tunnel-tools', () => tunnels.refresh());
+  handle('update-check', () => updater.check({ manual: true }));
+  handle('update-download', () => updater.download());
+  handle('update-dismiss', () => { updateDismissed = updater.state.version || ''; });
+  handle('update-result-dismiss', () => { updateResult = null; });
+  handle('update-notes', () => { if (/^https:\/\/github\.com\/samnimoh\/dropovpn\/releases\//.test(updater.state.notes || '')) return shell.openExternal(updater.state.notes); });
+  handle('update-install', async () => {
+    if (updater.state.status !== 'ready') throw new Error('Download the update first.');
+    if (!['disconnected', 'error'].includes(vpn.state.status) && !updater.state.manual) {
+      const answer = await dialog.showMessageBox(window, { type: 'question', buttons: ['Cancel', 'Restart and update'], defaultId: 1, cancelId: 0, message: `Install DropoVPN ${updater.state.version} now?`, detail: 'Your VPN will disconnect while DropoVPN restarts. Reconnect when it reopens.' });
+      if (answer.response !== 1) return;
+    }
+    const version = updater.state.version;
+    if (!updater.install()) return;
+    store.data.update.pending = version; store.persist();
+    setTimeout(() => app.quit(), 300);
+  });
   handle('open-link', value => shell.openExternal(knownLink(value, { open: true })));
   handle('copy-link', value => clipboard.writeText(knownLink(value)));
   handle('clear-logs', () => { vpn.logs = []; });
   await window.loadURL(uiURL); publish();
   void restartMesh().catch(error => vpn.log(`Device mesh could not start: ${error.message}`, 'error'));
   void tunnels.refresh();
+  scheduleUpdates();
   importsReady = true; await flushProfileFiles();
   powerMonitor.on('resume', () => vpn.resume());
   app.on('activate', () => window.show());

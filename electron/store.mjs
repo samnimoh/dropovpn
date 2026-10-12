@@ -7,11 +7,11 @@ export class Store {
     this.directory = directory; this.encryption = encryption;
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.file = path.join(directory, 'dropovpn.json');
-    this.data = { version: 1, profiles: [], secrets: {}, settings: { autoReconnect: true, launchAtLogin: false, minimizeToTray: true, enginePath: '' }, mesh: { enabled: false, deviceId: '', deviceName: '', lanDiscovery: true, relayURL: '', services: [], encryptedSecret: '', encryptedRelayToken: '' } };
+    this.data = { version: 1, profiles: [], secrets: {}, settings: { autoReconnect: true, launchAtLogin: false, minimizeToTray: true, autoUpdate: true, enginePath: '' }, update: { pending: null }, mesh: { enabled: false, deviceId: '', deviceName: '', lanDiscovery: true, relayURL: '', services: [], encryptedSecret: '', encryptedRelayToken: '' } };
     if (fs.existsSync(this.file)) {
       const saved = JSON.parse(fs.readFileSync(this.file, 'utf8'));
       if (saved.version !== 1 || !Array.isArray(saved.profiles)) throw new Error('Unrecognized DropoVPN data format.');
-      this.data = { ...this.data, ...saved, settings: { ...this.data.settings, ...saved.settings }, mesh: { ...this.data.mesh, ...saved.mesh } };
+      this.data = { ...this.data, ...saved, settings: { ...this.data.settings, ...saved.settings }, update: { ...this.data.update, ...saved.update }, mesh: { ...this.data.mesh, ...saved.mesh } };
     }
   }
   persist() {
@@ -52,7 +52,7 @@ export class Store {
     this.persist();
   }
   settings(update) {
-    for (const key of ['autoReconnect', 'launchAtLogin', 'minimizeToTray']) {
+    for (const key of ['autoReconnect', 'launchAtLogin', 'minimizeToTray', 'autoUpdate']) {
       if (key in update) { if (typeof update[key] !== 'boolean') throw new Error('Invalid setting.'); this.data.settings[key] = update[key]; }
     }
     this.persist();
