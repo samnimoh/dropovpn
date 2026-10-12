@@ -1,6 +1,6 @@
 # DropoVPN
 
-An Electron OpenVPN client for macOS and Windows, with automatic reconnection and an encrypted, per-profile saved password. The desktop interface uses React and TypeScript; the main process manages OpenVPN and credential storage.
+An Electron OpenVPN client for macOS and Windows, with automatic reconnection and an encrypted, per-profile saved password. It also links your devices into an end-to-end encrypted **device mesh**, so a local address like `localhost:3000` on one device opens on the others, and creates **public URLs** for local web apps through Cloudflare, ngrok or your own relay. The desktop interface uses React and TypeScript; the main process manages OpenVPN, the mesh and credential storage.
 
 **[Visit the download website](https://dropovpn.vercel.app)** · [Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.2.0) · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
 
@@ -78,9 +78,85 @@ Closing the window keeps the application in the menu bar/system tray by default.
 - Shows tunnel status, session duration, VPN address, byte counters and a bounded in-memory activity log. Counters are OpenVPN's engine counters, not billing or application traffic totals.
 - Adds and removes a per-tunnel macOS DNS resolver for pushed `dhcp-option DNS` servers. Windows networking/DNS configuration is handled by OpenVPN and its installed driver.
 
+## Device mesh
+
+The device mesh works like a private network for your own devices, at the level of addresses rather than whole machines. Each device chooses what to share: a local port (`3000`), a local address (`localhost:5173`), or something on its network (`http://192.168.1.20:8080`, `tcp://localhost:5432`). Every other device in the mesh then opens it on its **own** `localhost`, using the same port when it is free and another port when it is not. Because the request arrives on `localhost`, development servers that only listen on loopback or check the `Host` header work without changes. Any TCP service works, including web apps, WebSockets, APIs and databases.
+
+1. On the first device, open **Device mesh** and choose **Create a mesh**.
+2. Choose **Copy invite**, send the invite to yourself, and choose **Join with an invite** on each other device.
+3. Share addresses under **Shared from this device**. Other devices list them with **Open** and **Copy** links.
+
+Devices connect in two ways:
+
+- **Directly** when they can reach each other: the same Wi-Fi or LAN, or the same OpenVPN network when your server allows client-to-client traffic. Devices on a local network find each other with signed UDP announcements on port 47821 and connect on TCP port 47820 (or another free port). Your operating system may ask you to allow incoming connections. Turning off **Find devices on this network** stops both the announcements and the listener, leaving the relay as the only path.
+- **Through a relay** when they cannot, for example a laptop on mobile data and a desktop at home. New meshes use the shared DropoVPN relay at `wss://dropovpn.samuelnimoh.com`, so this works without any setup; you can switch to [your own relay](#self-hosted-relay) or turn relaying off under **Device mesh → Relay**. Once two relayed devices learn they can reach each other directly, new connections switch to the direct path.
+
+Every connection between devices is encrypted end to end. A mesh shares one 32-byte key held in the invite. Each session uses ephemeral X25519 keys mixed with that key through HKDF-SHA256, and AES-256-GCM records, so a relay forwards traffic it cannot read and recorded traffic stays private even if the key leaks later. Credit-based flow control limits how much data either side buffers per connection. The mesh key and relay token are encrypted with the macOS Keychain or Windows DPAPI like VPN passwords, and never reach the window's renderer process. Invites are copied straight to the clipboard from the main process.
+
+Anyone holding an invite is a full member, so treat it like a password. There is no per-device revocation; to remove a device, leave the mesh on every device and create a new one. Shared addresses are reachable only on each device's loopback interface, but any program or user on those devices can reach them. The mesh carries TCP only.
+
+## Public URLs
+
+**Public URLs** gives a local web address a link anyone can open, like ngrok. Choose a provider:
+
+| Provider | What you need | Address |
+| --- | --- | --- |
+| Cloudflare quick tunnel | `cloudflared` installed (`brew install cloudflared` or `winget install --id Cloudflare.cloudflared`). No account. | Random `https://….trycloudflare.com` |
+| ngrok | The `ngrok` agent installed and signed in with `ngrok config add-authtoken`. | Your ngrok address |
+| Your DropoVPN relay | A relay with `DROPO_PUBLIC_DOMAIN` set, connected under Device mesh. | `https://name.your-domain` |
+
+DropoVPN detects the agents in standard install locations and on `PATH`, but does not bundle them. It starts one only when you create a URL and stops it when you stop the URL or quit. Every provider rewrites the `Host` header to the local address, so development servers with host checks accept the traffic; the public host is passed as `X-Forwarded-Host`. Public URLs are not saved across restarts. Anyone with a link can reach that address while it runs.
+
+## Self-hosted relay
+
+The shared relay connects mesh devices only: it serves no public URLs, and its access key ships inside the app, so it is public by design. It limits connections per address and paces each device to 2 MB/s. It runs on Fly.io from [`relay/fly.toml`](relay/fly.toml) as a single machine, because devices meet in one process's memory.
+
+To control access yourself or serve public URLs on your domain, run your own. The relay is a single dependency-free Node.js file, `relay/server.mjs`. It connects mesh devices that cannot reach each other directly and, optionally, serves public URLs on your domain. One HTTP port handles both, so it can run behind any HTTPS reverse proxy or platform that supports WebSockets.
+
+```sh
+DROPO_RELAY_TOKEN="$(openssl rand -base64 32)" DROPO_PUBLIC_DOMAIN=tunnels.example.com node relay/server.mjs
+# or
+docker build -f relay/Dockerfile -t dropovpn-relay .
+docker run -p 8080:8080 -e DROPO_RELAY_TOKEN=… -e DROPO_PUBLIC_DOMAIN=tunnels.example.com dropovpn-relay
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `DROPO_RELAY_TOKEN` | Required access token, at least 16 characters. Devices send it to connect. |
+| `PORT`, `HOST` | Listening address. Defaults to `0.0.0.0:8080`. |
+| `DROPO_PUBLIC_DOMAIN` | Enables public URLs at `*.tunnels.example.com`. Point a wildcard DNS record at the relay. |
+| `DROPO_PUBLIC_SCHEME`, `DROPO_PUBLIC_PORT` | How public URLs are written. Defaults to `https` behind a TLS proxy. |
+| `DROPO_TLS_CERT`, `DROPO_TLS_KEY` | Optional certificate files to serve HTTPS directly. |
+| `DROPO_MAX_DEVICES`, `DROPO_MAX_PER_ADDRESS` | Connection limits overall and per client address. Defaults to 2000 and 32. |
+| `DROPO_DEVICE_RATE` | Bytes per second each device may send through the relay. Off by default. |
+| `DROPO_CLIENT_ADDRESS_HEADER` | Header naming the real client address behind a proxy that sets it, such as `fly-client-ip`. |
+
+Then, under **Device mesh → Relay**, enter `wss://relay.example.com` and the token. Invites copied afterwards include both. Use `wss://`: with `ws://`, mesh traffic stays end-to-end encrypted but the token and public URL traffic do not. A minimal [Caddy](https://caddyserver.com) setup issues certificates only for active public URLs:
+
+```caddy
+{
+	on_demand_tls {
+		ask http://127.0.0.1:8080/_dropovpn/v1/tls-allowed
+	}
+}
+relay.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
+*.tunnels.example.com {
+	tls {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+The relay learns which devices are connected (random identifiers grouped by a one-way mesh identifier), when, and how much data they exchange. It cannot read mesh traffic. It does handle public URL traffic in the clear between TLS termination and the device, as any tunnel service does. Anyone with the relay token can connect devices and create public URLs, so keep it private.
+
 ## Security boundaries
 
 The Electron renderer is sandboxed, with context isolation, no Node.js integration, a restrictive Content Security Policy, no remote content, denied permissions, and a narrow validated IPC API. It never receives a saved password or a decrypted profile. Browser previews cannot connect to VPNs.
+
+The device mesh, public URLs and relay run without administrator permission and without network drivers. When the mesh is on, the main process listens on TCP 47820 and UDP 47821 on your local networks and forwards shared addresses on `127.0.0.1` only. A device answers only shared addresses, never arbitrary ports, and peers must prove they hold the mesh key before any data or device list is exchanged.
 
 Only the OpenVPN process is elevated. macOS uses the system authorization dialog; Windows uses UAC. Imported profiles use a directive allowlist, reject scripts/plugins/includes, constrain external certificates to the profile folder, and require server verification. The launcher copies validated profile bytes and the trusted DNS helper into a private administrator-owned runtime directory and verifies SHA-256 hashes before execution. Only the application-owned DNS helper is executable.
 
@@ -94,11 +170,13 @@ There is **no kill switch**. Traffic follows the profile's routes; split-tunnel 
 
 ```sh
 npm run check          # TypeScript, production UI build, unit/integration tests
-npm run test:electron  # Real Electron window, IPC, navigation, settings, screenshots
+npm run test:electron  # Real Electron windows: IPC, navigation, settings, a two-device mesh through a local relay, a public URL, screenshots
 node scripts/check-profile.mjs /path/to/profile.ovpn # Private profile validation against loopback only
 npm run dist:mac       # DMG and ZIP on macOS
 npm run dist:win       # NSIS installer on Windows
 ```
+
+The mesh tests run real devices, a real relay and real UDP discovery over loopback: direct and relayed connections, switching to a direct path, reconnects, wrong mesh keys and relay tokens, flow control, large transfers, WebSockets through a mesh and through a public URL, and readable errors for stopped addresses. Provider tests use stand-in `cloudflared` and `ngrok` processes, so they never create real public URLs. Isolated Electron test sessions keep the mesh on loopback and never broadcast on your network.
 
 The test suite includes a real OpenVPN management handshake when the executable is installed. That test uses `dev null` and loopback, with no elevation, tunnel, route changes or external VPN server. It skips if the engine is unavailable. The protocol tests cover credential replay, rejection, engine crashes, explicit disconnect, wake from sleep, and peer impersonation. Store tests exercise encryption through an injected cipher; the desktop application uses the operating system's provider.
 

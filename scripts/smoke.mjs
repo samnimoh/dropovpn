@@ -23,6 +23,11 @@ try {
   await window.getByRole('heading', { name: 'All quiet here.', exact: true }).waitFor();
   await window.getByRole('button', { name: 'VPN profiles', exact: false }).click();
   await window.getByRole('heading', { name: 'Saved connections', exact: false }).waitFor();
+  await window.getByRole('button', { name: 'Device mesh', exact: true }).click();
+  await window.getByRole('heading', { name: 'Your devices, one network.', exact: true }).waitFor();
+  await window.getByRole('button', { name: 'Public URLs', exact: true }).click();
+  await window.getByRole('heading', { name: 'Nothing is public right now.', exact: true }).waitFor();
+  assert.equal(await window.getByRole('button', { name: 'Import profile', exact: true }).count(), 0);
   await window.getByRole('button', { name: 'Connection', exact: true }).click();
   await window.getByRole('heading', { name: 'Your connection.', exact: true }).waitFor();
   await window.getByRole('button', { name: 'Connection', exact: true }).getAttribute('aria-current').then(value => assert.equal(value, 'page'));
@@ -68,5 +73,5 @@ try {
   assert.equal((await window.evaluate(() => window.dropovpn.snapshot())).profiles.length, 1);
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
   assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()), false);
-  console.log('Electron smoke test passed: import, OS-encrypted storage, sign-in dialog, rename/remove, settings, tray, navigation, context isolation.');
+  console.log('Electron smoke test passed: import, OS-encrypted storage, sign-in dialog, rename/remove, settings, mesh and public URL pages, tray, navigation, context isolation.');
 } finally { await app.close(); fs.rmSync(directory, { recursive: true, force: true }); }

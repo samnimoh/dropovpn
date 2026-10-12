@@ -21,18 +21,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Verify build and draft release
+      - name: Verify build
         id: verify
         run: |
           [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
           gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > /tmp/build.json
           jq -e '.conclusion == "success" and .name == "Check and package DropoVPN" and .head_branch == "main"' /tmp/build.json
-          sha=$(jq -r '.head_sha' /tmp/build.json)
-          gh release view v0.2.0 --json isDraft,targetCommitish | jq -e --arg sha "$sha" '.isDraft == true and .targetCommitish == $sha'
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "sha=$(jq -r '.head_sha' /tmp/build.json)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.verify.outputs.sha }}
+      - name: Verify the draft release for this version
+        id: release
+        env:
+          SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          version=$(jq -r .version package.json)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh release view "v$version" --json isDraft,targetCommitish | jq -e --arg sha "$SHA" '.isDraft == true and .targetCommitish == $sha'
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Package corresponding runtime sources
         run: node scripts/package-runtime-sources.mjs
       - uses: actions/download-artifact@v4
@@ -44,15 +51,18 @@ jobs:
           path: installers
       - name: Upload verified installers
         working-directory: installers
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          test -f DropoVPN-0.2.0-mac-arm64.dmg
-          test -f DropoVPN-0.2.0-mac-arm64.zip
-          test -f DropoVPN-0.2.0-win-x64.exe
-          sha256sum DropoVPN-0.2.0-mac-arm64.dmg DropoVPN-0.2.0-mac-arm64.zip DropoVPN-0.2.0-win-x64.exe > INSTALLER-SHA256SUMS.txt
-          gh release upload v0.2.0 DropoVPN-0.2.0-mac-arm64.dmg DropoVPN-0.2.0-mac-arm64.zip DropoVPN-0.2.0-win-x64.exe INSTALLER-SHA256SUMS.txt --clobber
+          files=("DropoVPN-$VERSION-mac-arm64.dmg" "DropoVPN-$VERSION-mac-arm64.zip" "DropoVPN-$VERSION-win-x64.exe")
+          for file in "${files[@]}"; do test -f "$file"; done
+          sha256sum "${files[@]}" > INSTALLER-SHA256SUMS.txt
+          gh release upload "v$VERSION" "${files[@]}" INSTALLER-SHA256SUMS.txt --clobber
       - name: Upload source archive and complete checksums
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           cp installers/INSTALLER-SHA256SUMS.txt release/SHA256SUMS.txt
           cd release
-          sha256sum DropoVPN-0.2.0-runtime-sources.tar.gz >> SHA256SUMS.txt
-          gh release upload v0.2.0 DropoVPN-0.2.0-runtime-sources.tar.gz SHA256SUMS.txt --clobber
+          sha256sum "DropoVPN-$VERSION-runtime-sources.tar.gz" >> SHA256SUMS.txt
+          gh release upload "v$VERSION" "DropoVPN-$VERSION-runtime-sources.tar.gz" SHA256SUMS.txt --clobber

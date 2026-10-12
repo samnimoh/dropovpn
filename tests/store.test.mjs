@@ -26,3 +26,19 @@ test('refuses plaintext fallback when OS encryption is unavailable', t => {
   assert.throws(() => store.add('Work', { config: 'private' }), /credential store is unavailable/);
   assert.equal(store.list().length, 0);
 });
+test('seals the mesh key and relay token and keeps other mesh settings readable', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dropovpn-mesh-')); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const key = randomBytes(32);
+  const encryption = { isEncryptionAvailable: () => true, encryptString(value) { const iv = randomBytes(16), cipher = createCipheriv('aes-256-cbc', key, iv); return Buffer.concat([iv, cipher.update(value), cipher.final()]); }, decryptString(value) { const cipher = createDecipheriv('aes-256-cbc', key, value.subarray(0, 16)); return Buffer.concat([cipher.update(value.subarray(16)), cipher.final()]).toString(); } };
+  const store = new Store(directory, encryption), secret = randomBytes(32);
+  assert.equal(store.meshSecrets(), null);
+  store.saveMesh({ secret, relayToken: 'relay-token-that-is-secret', relayURL: 'wss://relay.example.com/', enabled: true });
+  const disk = fs.readFileSync(store.file, 'utf8');
+  assert.doesNotMatch(disk, new RegExp(secret.toString('base64').slice(0, 20).replace(/[+/]/g, '.'))); assert.doesNotMatch(disk, /relay-token-that-is-secret/);
+  const reloaded = new Store(directory, encryption);
+  assert.equal(reloaded.meshSecrets().secret.equals(secret), true);
+  assert.equal(reloaded.meshSecrets().relayToken, 'relay-token-that-is-secret');
+  assert.match(reloaded.data.mesh.deviceId, /^[a-f0-9]{32}$/); assert.equal(reloaded.data.mesh.lanDiscovery, true);
+  reloaded.saveMesh({ secret: null, relayToken: '' });
+  assert.equal(reloaded.meshSecrets(), null);
+});

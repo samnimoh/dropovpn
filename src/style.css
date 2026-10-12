@@ -4,3 +4,62 @@
 @media(max-width:1000px){.nav-item{white-space:nowrap;gap:9px;padding-left:10px;padding-right:10px;font-size:11px}.help{font-size:10px}.nav-count{min-width:17px}.nav-item svg{flex-shrink:0}}
 
 .platform-win32 .titlebar>div{padding-right:126px}
+.nav-count.live{background:#e7f4ed;color:#4f8f6b}
+.features-grid.three{grid-template-columns:repeat(3,1fr)}
+.join-button{margin-top:10px}
+.join-button>svg:first-child{margin-right:auto}
+.join-button::after{content:"";width:16px;margin-left:auto}
+.setting-row>.text-button{margin-left:auto}
+.mesh-art .power-orb>div{color:#aa92cd}
+.mesh-status{margin-bottom:18px}
+.mesh-device{display:flex;align-items:center;gap:16px;padding:20px 26px 24px}
+.mesh-device .hero-icon{margin:0;flex-shrink:0}
+.mesh-device-text{min-width:0}
+.mesh-device-text h2{font-size:22px;font-weight:550;letter-spacing:-.7px;line-height:1.25;display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}
+.mesh-device-text p{font-size:10px;color:#95909f;margin-top:6px;line-height:1.6}
+.mesh-actions{margin-left:auto;display:flex;align-items:center;gap:16px;flex-shrink:0}
+.mesh-actions .toggle{margin-left:0}
+.mesh-notice .text-button{margin-left:auto;color:inherit}
+.share-form{display:flex;align-items:flex-end;gap:12px;margin:18px 0 4px}
+.field{display:flex;flex-direction:column;gap:7px;font-size:10px;color:#8c7b9f;min-width:0;width:170px}
+.field.grow{flex:1;width:auto}
+.field small{color:#b3a8c0;font-size:9px;margin-left:3px}
+.field input,.field select{border:1px solid #e7dfef;border-radius:7px;padding:0 12px;height:37px;color:#5f5370;font-size:11px;background:#fdfcfe;width:100%}
+.field input::placeholder{color:#bab0c4}
+.field select{cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:14px;font-size:9px;color:#a297af}
+.chips>span{margin-right:2px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #e6e0ef;background:#faf8fd;border-radius:20px;padding:4px 9px;font-size:9px;color:#7d6a98;font-variant-numeric:tabular-nums}
+.chip:hover{background:#f2edf9;border-color:#d8cbea}
+.panel .share-form+.profile-list,.panel .chips+.profile-list{margin-top:18px}
+.profile-row>.profile-text{flex:1}
+.peer{padding:15px 16px;border-bottom:1px solid #f0edf5}
+.peer:last-child{border:0}
+.peer-head{display:flex;align-items:center;gap:12px}
+.peer-head .profile-text{flex:1}
+.peer-services{margin:12px 0 0 52px;display:flex;flex-direction:column;gap:6px}
+.service-link{display:flex;align-items:center;gap:14px;background:#faf9fc;border:1px solid #f0edf5;border-radius:7px;padding:8px 12px;font-size:10px;min-width:0}
+.service-link>span{font-weight:550;color:#5f5a6c;min-width:0;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.service-link code{color:#7f6aa5;font-size:10px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.service-link>button:first-of-type{margin-left:auto}
+.peer-empty{margin:9px 0 0 52px;font-size:9px;color:#aaa2b6}
+.provider-note{display:flex;align-items:center;gap:8px;font-size:10px;color:#9a91a8;margin-top:14px;line-height:1.7}
+.provider-note>svg{flex-shrink:0}
+.provider-note>span{min-width:0}
+.provider-note>button{margin-left:auto}
+.provider-note code{background:#f4f1f8;border-radius:4px;padding:2px 6px;color:#7a6797;white-space:nowrap}
+.provider-note.ready{color:#5f9677}
+.provider-note.ready code{background:#edf6f0;color:#4f8a69}
+.modal textarea{width:100%;border:1px solid #e7dfef;border-radius:7px;padding:12px;color:#72627f;font:11px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:block;margin-top:8px;background:#fdfcfe;resize:none;overflow-wrap:anywhere}
+.modal textarea::placeholder{color:#bab0c4}
+.modal-link{margin:-8px 0 4px}
+.modal-note{font-size:9.5px;color:#ad9dbe;margin-top:14px;line-height:1.6}
+.danger.text-button{color:#b8777a}
+.danger.text-button:hover{color:#9f5458}
+@media(max-width:1000px){.features-grid.three .feature-card p{font-size:8px}
+.share-form{flex-wrap:wrap}
+.field.grow{flex-basis:100%}
+.mesh-actions{gap:10px}
+.mesh-device-text h2{font-size:19px}
+.peer-services,.peer-empty{margin-left:0}
+}

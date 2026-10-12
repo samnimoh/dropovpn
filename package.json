@@ -1,6 +1,6 @@
 {
   "name": "dropovpn",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "OpenVPN client for macOS and Windows with automatic reconnection and encrypted password storage.",
   "repository": {
     "type": "git",
@@ -19,7 +19,7 @@
     "pack:mac": "npm run runtime:mac && npm run build && electron-builder --mac --dir",
     "dist:mac": "npm run runtime:mac && npm run build && electron-builder --mac",
     "dist:win": "npm run runtime:win && npm run build && electron-builder --win",
-    "test:electron": "npm run build && node scripts/smoke.mjs",
+    "test:electron": "npm run build && node scripts/smoke.mjs && node scripts/mesh-smoke.mjs",
     "runtime:mac": "node scripts/build-runtime-mac.mjs",
     "runtime:win": "node scripts/prepare-runtime-win.mjs"
   },

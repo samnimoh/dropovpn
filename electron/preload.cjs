@@ -18,6 +18,19 @@ contextBridge.exposeInMainWorld('dropovpn', {
   selectEngine: () => invoke('engine-select'),
   help: () => invoke('help'),
   clearLogs: () => invoke('clear-logs'),
+  meshCreate: () => invoke('mesh-create'),
+  meshJoin: invite => invoke('mesh-join', invite),
+  meshLeave: () => invoke('mesh-leave'),
+  meshInvite: () => invoke('mesh-invite'),
+  meshSettings: value => invoke('mesh-settings', value),
+  meshShare: value => invoke('mesh-share', value),
+  meshUnshare: id => invoke('mesh-unshare', id),
+  meshDetect: () => invoke('mesh-detect'),
+  tunnelStart: value => invoke('tunnel-start', value),
+  tunnelStop: id => invoke('tunnel-stop', id),
+  tunnelTools: () => invoke('tunnel-tools'),
+  openLink: url => invoke('open-link', url),
+  copyLink: url => invoke('copy-link', url),
   onChange: callback => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on('dropovpn:changed', listener);
