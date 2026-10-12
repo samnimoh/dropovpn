@@ -10,17 +10,18 @@ const accept = key => createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C
 
 export class WebSocketConnection extends EventEmitter {
   constructor(socket, { client = false, head, maxMessage = 1024 * 1024, maxBuffered = 16 * 1024 * 1024, keepalive = 20000 } = {}) {
-    super(); this.socket = socket; this.client = client; this.maxMessage = maxMessage; this.maxBuffered = maxBuffered;
+    super(); this.socket = socket; this.client = client; this.maxMessage = maxMessage; this.maxBuffered = maxBuffered; this.lastReceived = Date.now();
     this.parts = []; this.size = 0; this.need = 2; this.fragments = []; this.fragmentType = 0; this.fragmentSize = 0; this.closed = false; this.closeSent = false; this.alive = true;
     socket.setNoDelay?.(true); socket.setTimeout?.(0);
     socket.on('data', chunk => this.receive(chunk));
-    // A peer that half-closes without a close frame is gone.
-    socket.on('end', () => socket.destroy());
-    socket.on('close', () => this.finish(1006, ''));
-    socket.on('error', () => {});
+    // A peer that half-closes without a close frame is gone. The close event
+    // says how a connection ended, which is what diagnoses dropped devices.
+    socket.on('end', () => { this.finish(1006, 'The other side ended the connection.'); socket.destroy(); });
+    socket.on('close', () => this.finish(1006, this.lastError ? `Network error: ${this.lastError}` : 'The connection was lost.'));
+    socket.on('error', error => { this.lastError = error.code || error.message; });
     socket.on('drain', () => this.emit('drain'));
     this.timer = setInterval(() => {
-      if (!this.alive) { socket.destroy(); return; }
+      if (!this.alive) { this.finish(4408, `No response for ${Math.round(keepalive * 2 / 1000)} seconds.`); socket.destroy(); return; }
       this.alive = false; this.frame(0x9, Buffer.alloc(0));
     }, keepalive); this.timer.unref?.();
     // Frames that arrived with the handshake are parsed once the caller has
@@ -29,7 +30,7 @@ export class WebSocketConnection extends EventEmitter {
   }
   get bufferedAmount() { return this.socket.writableLength; }
   receive(chunk) {
-    this.alive = true;
+    this.alive = true; this.lastReceived = Date.now();
     if (chunk.length) { this.parts.push(chunk); this.size += chunk.length; }
     // Join buffered chunks only once a whole header or frame is available, so
     // a sender trickling bytes cannot make every chunk copy the backlog.

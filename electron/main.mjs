@@ -96,7 +96,7 @@ function restartMesh() {
     const previous = mesh; mesh = null; await previous?.stop();
     const config = store.data.mesh, secrets = config.enabled ? store.meshSecrets() : null;
     if (secrets) {
-      mesh = new MeshAgent({ secret: secrets.secret, relayToken: secrets.relayToken, relayURL: config.relayURL, deviceId: config.deviceId, deviceName: config.deviceName || defaultDeviceName(), services: config.services, direct: config.lanDiscovery, lanDiscovery: config.lanDiscovery && !isolated, ...(isolated ? { host: '127.0.0.1', advertise: ['127.0.0.1'] } : {}), log: (message, level) => vpn.log(message, level) });
+      mesh = new MeshAgent({ version: app.getVersion(), secret: secrets.secret, relayToken: secrets.relayToken, relayURL: config.relayURL, deviceId: config.deviceId, deviceName: config.deviceName || defaultDeviceName(), services: config.services, direct: config.lanDiscovery, lanDiscovery: config.lanDiscovery && !isolated, ...(isolated ? { host: '127.0.0.1', advertise: ['127.0.0.1'] } : {}), log: (message, level) => vpn.log(message, level) });
       mesh.on('change', publish);
       await mesh.start();
     }
@@ -299,7 +299,7 @@ async function start() {
   void tunnels.refresh();
   scheduleUpdates();
   importsReady = true; await flushProfileFiles();
-  powerMonitor.on('resume', () => vpn.resume());
+  powerMonitor.on('resume', () => { vpn.resume(); mesh?.refresh(); });
   app.on('activate', () => window.show());
 }
 

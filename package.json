@@ -1,6 +1,6 @@
 {
   "name": "dropovpn",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "OpenVPN client for macOS and Windows with automatic reconnection and encrypted password storage.",
   "repository": {
     "type": "git",

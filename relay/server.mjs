@@ -93,7 +93,9 @@ export function createRelay({ token, publicDomain = '', publicScheme = 'https', 
     const address = clientOf(incoming);
     if ((!meshes.get(mesh)?.has(device) && (meshes.get(mesh)?.size || 0) >= maxDevices) || agents >= maxAgents || (addresses.get(address) || 0) >= maxPerAddress) return reply(socket, '429 Too Many Requests');
     const ws = acceptWebSocket(incoming, socket, head, { maxMessage: 512 * 1024 });
-    if (ws) join(mesh, device, ws, address);
+    // Newer apps describe themselves, which helps diagnose a device that keeps dropping.
+    const client = String(incoming.headers['x-dropovpn-client'] || '').replace(/[^\w .:/-]/g, '').slice(0, 40);
+    if (ws) join(mesh, device, ws, address, client);
   }
   function tunnelUpgrade(tunnel, incoming, socket, head) {
     let stream;
@@ -108,9 +110,9 @@ export function createRelay({ token, publicDomain = '', publicScheme = 'https', 
     if (head.length) stream.write(head);
     splice(socket, stream);
   }
-  function join(mesh, device, ws, address) {
+  function join(mesh, device, ws, address, client = '') {
     const members = meshes.get(mesh) || new Map(); meshes.set(mesh, members);
-    const previous = members.get(device), agent = { mesh, device, ws, address, tunnels: new Map(), tokens: deviceRate, refilled: Date.now() };
+    const previous = members.get(device), agent = { mesh, device, ws, address, client, since: Date.now(), tunnels: new Map(), tokens: deviceRate, refilled: Date.now() };
     agents++; addresses.set(address, (addresses.get(address) || 0) + 1);
     agent.mux = new Mux({ send: frame => ws.send(Buffer.concat([Buffer.from([TUNNEL]), frame])), initiator: true });
     agent.mux.on('stream', stream => stream.destroy(new Error('Devices cannot open relay streams.')));
@@ -120,8 +122,13 @@ export function createRelay({ token, publicDomain = '', publicScheme = 'https', 
     ws.send(JSON.stringify({ type: 'welcome', peers: [...members.keys()].filter(id => id !== device), publicTunnels: !!domain }));
     for (const other of members.values()) if (other !== agent) other.ws.send(JSON.stringify({ type: 'joined', peer: device }));
     ws.on('message', (data, binary) => { try { if (binary) route(agent, data); else control(agent, data); } catch { ws.close(1002, 'Malformed message.'); } });
-    ws.on('close', () => leave(agent, true));
-    log(`Device ${device.slice(0, 8)} joined mesh ${mesh.slice(0, 8)} (${members.size} connected).`);
+    ws.on('close', (code, reason) => {
+      leave(agent, true);
+      const seconds = Math.round((Date.now() - agent.since) / 1000);
+      const why = { 1000: 'closed by the device', 1001: 'the device is going away', 4409: 'replaced by a newer connection from the same device', 1013: 'the device fell too far behind' }[code] || reason || `code ${code}`;
+      log(`Device ${device.slice(0, 8)} left mesh ${mesh.slice(0, 8)} after ${seconds}s: ${why}.`);
+    });
+    log(`Device ${device.slice(0, 8)}${client ? ` (${client})` : ''} joined mesh ${mesh.slice(0, 8)} (${members.size} connected).`);
   }
   function leave(agent, announce) {
     if (agent.left) return;

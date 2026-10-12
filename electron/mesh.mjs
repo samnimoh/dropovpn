@@ -6,7 +6,7 @@ import { Mux, splice } from './mux.mjs';
 import { SecureChannel, discoveryPacket, isDeviceId, meshKeys, readDiscovery } from './meshcrypto.mjs';
 import { connectWebSocket } from './websocket.mjs';
 
-export const MESH_PORT = 47820, DISCOVERY_PORT = 47821, MAX_SERVICES = 32;
+export const MESH_PORT = 47820, DISCOVERY_PORT = 47821, MAX_SERVICES = 32, GRACE = 30000, STALE = 20000;
 const MAX_FRAME = 256 * 1024, MAX_PEERS = 64, RELAY_PEER = 1, RELAY_TUNNEL = 2;
 const hostPort = (host, port) => `${host.includes(':') ? `[${host}]` : host}:${port}`;
 const text = (value, max) => typeof value === 'string' ? value.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, max) : '';
@@ -71,9 +71,9 @@ function connectTarget(stream, { host, port, protocol }, unavailable) {
 }
 
 export class MeshAgent extends EventEmitter {
-  constructor({ secret, deviceId, deviceName, services = [], relayURL = '', relayToken = '', lanDiscovery = true, direct = true, host = '0.0.0.0', port = MESH_PORT, discoveryPort = DISCOVERY_PORT, advertise = null, discoveryTargets = null, log = () => {} }) {
+  constructor({ secret, deviceId, deviceName, services = [], relayURL = '', relayToken = '', lanDiscovery = true, direct = true, host = '0.0.0.0', port = MESH_PORT, discoveryPort = DISCOVERY_PORT, advertise = null, discoveryTargets = null, grace = GRACE, version = '', log = () => {} }) {
     super();
-    Object.assign(this, { deviceId, deviceName, services, relayURL, relayToken, lanDiscovery, direct, host, preferredPort: port, discoveryPort, advertise, discoveryTargets, log });
+    Object.assign(this, { deviceId, deviceName, services, relayURL, relayToken, lanDiscovery, direct, host, preferredPort: port, discoveryPort, advertise, discoveryTargets, grace, version, log });
     this.keys = meshKeys(secret); this.peers = new Map(); this.candidates = new Map(); this.dialing = new Set(); this.lastDial = new Map(); this.assigned = new Map(); this.serving = new Map();
     this.relayChannels = new Map(); this.relayPeers = new Set(); this.relayStarted = new Map(); this.relayRetry = new Map(); this.exposed = new Map(); this.relayAttempts = 0; this.pending = 0; this.pendingFrom = new Map();
     this.relay = { status: relayURL ? 'connecting' : 'off', message: relayURL ? 'Connecting to your relay…' : '', publicTunnels: false };
@@ -96,12 +96,16 @@ export class MeshAgent extends EventEmitter {
     this.maintain();
   }
   async stop() {
+    // Say goodbye first, so other devices know this is not a brief drop.
+    if (!this.stopped) { for (const peer of this.peers.values()) for (const session of [peer.direct, peer.relay]) session?.mux.message({ type: 'bye' }); await new Promise(resolve => setTimeout(resolve, 50)); }
     this.stopped = true; clearInterval(this.timer); clearInterval(this.announceTimer); clearTimeout(this.relayTimer);
     for (const timer of this.relayRetry.values()) clearTimeout(timer);
     try { this.udp?.close(); } catch { /* Already closed. */ }
-    this.server?.close(); this.relaySocket?.close(); this.relayMux?.close();
+    this.server?.close(); this.relaySocket?.close(1001, 'The mesh stopped on this device.'); this.relayMux?.close();
     for (const channel of this.relayChannels.values()) channel.close('The mesh stopped.');
     for (const peer of this.peers.values()) {
+      clearTimeout(peer.graceTimer);
+      for (const waiter of peer.waiters) waiter.socket.destroy();
       peer.direct?.mux.close(); peer.relay?.mux.close();
       for (const forward of peer.forwards.values()) forward.server.close();
       peer.forwards.clear();
@@ -130,7 +134,7 @@ export class MeshAgent extends EventEmitter {
     return {
       deviceId: this.deviceId, port: this.listenPort, listenError: this.listenError, relay: { ...this.relay },
       peers: [...this.peers.values()].filter(peer => peer.known).map(peer => ({
-        id: peer.id, name: peer.name, platform: peer.platform, online: !!(peer.direct || peer.relay), path: peer.direct ? 'direct' : peer.relay ? 'relay' : null, lastSeen: peer.lastSeen,
+        id: peer.id, name: peer.name, platform: peer.platform, online: !!(peer.direct || peer.relay), reconnecting: peer.state === 'reconnecting', path: peer.direct ? 'direct' : peer.relay ? 'relay' : null, lastSeen: peer.lastSeen,
         services: peer.services.map(service => ({ ...service, localPort: peer.forwards.get(service.id)?.port ?? null, error: peer.forwards.get(service.id)?.error || '' }))
       }))
     };
@@ -141,7 +145,7 @@ export class MeshAgent extends EventEmitter {
   // connections prefer the direct path.
   peer(id) {
     let peer = this.peers.get(id);
-    if (!peer && this.peers.size < MAX_PEERS) this.peers.set(id, peer = { id, name: '', platform: '', services: [], direct: null, relay: null, forwards: new Map(), known: false, online: false, lastSeen: null });
+    if (!peer && this.peers.size < MAX_PEERS) this.peers.set(id, peer = { id, name: '', platform: '', services: [], direct: null, relay: null, forwards: new Map(), waiters: [], known: false, state: 'offline', online: false, lastOnline: 0, graceTimer: null, lastSeen: null });
     return peer;
   }
   attach(kind, channel, initiatorId) {
@@ -152,6 +156,7 @@ export class MeshAgent extends EventEmitter {
     if (existing && existing.initiatorId !== initiatorId && existing.initiatorId < initiatorId) { channel.close('Duplicate session.'); return; }
     const mux = new Mux({ send: frame => channel.write(frame), initiator: initiatorId === this.deviceId });
     const session = { kind, channel, mux, initiatorId };
+    peer.departed = false;
     peer[kind] = session; existing?.mux.close();
     channel.on('record', record => mux.receive(record));
     channel.on('close', () => mux.close());
@@ -167,6 +172,7 @@ export class MeshAgent extends EventEmitter {
     mux.message(this.catalog()); this.sync(peer);
   }
   catalogReceived(peer, message) {
+    if (message?.type === 'bye') { peer.departed = true; return; }
     if (message?.type !== 'catalog') return;
     Object.assign(peer, cleanCatalog(message), { known: true, lastSeen: new Date().toISOString() });
     for (const address of peer.addresses) this.candidate(peer.id, address);
@@ -174,9 +180,18 @@ export class MeshAgent extends EventEmitter {
   }
   sync(peer) {
     const online = !!(peer.direct || peer.relay), path = peer.direct ? 'directly' : 'through your relay';
-    if (peer.known && online !== peer.online) this.log(online ? `${peer.name} is connected ${path}.` : `${peer.name} left your mesh.`, online ? 'info' : 'warning');
-    peer.online = online;
-    const wanted = online && peer.known && !this.stopped ? peer.services : [];
+    if (online) { peer.lastOnline = Date.now(); clearTimeout(peer.graceTimer); peer.graceTimer = null; }
+    // A device that drops briefly (a relay reconnect, a computer waking up)
+    // keeps its forwarded ports for a grace period, so its addresses keep
+    // working and new connections wait for it instead of failing.
+    const grace = !online && peer.known && !this.stopped && !peer.departed && Date.now() - peer.lastOnline < this.grace;
+    if (grace && !peer.graceTimer) { peer.graceTimer = setTimeout(() => { peer.graceTimer = null; this.sync(peer); }, this.grace - (Date.now() - peer.lastOnline) + 50); peer.graceTimer.unref?.(); }
+    const state = online ? 'online' : grace ? 'reconnecting' : 'offline';
+    if (peer.known && state !== peer.state && state !== 'reconnecting' && !(state === 'online' && peer.state === 'reconnecting')) this.log(state === 'online' ? `${peer.name} is connected ${path}.` : `${peer.name} went offline.`, state === 'online' ? 'info' : 'warning');
+    peer.state = state; peer.online = online;
+    if (online) this.release(peer);
+    else if (!grace) for (const waiter of peer.waiters.splice(0)) waiter.socket.destroy();
+    const wanted = (online || grace) && peer.known && !this.stopped ? peer.services : [];
     for (const [id, forward] of peer.forwards) if (!wanted.some(service => service.id === id)) { forward.server.close(); peer.forwards.delete(id); }
     for (const service of wanted) if (!peer.forwards.has(service.id)) void this.forward(peer, service);
     this.emit('change');
@@ -186,10 +201,12 @@ export class MeshAgent extends EventEmitter {
   async forward(peer, service) {
     const key = `${peer.id}/${service.id}`, forward = { server: null, port: null, error: '' };
     forward.server = net.createServer(socket => {
-      const session = peer.direct || peer.relay;
-      if (!session) { socket.destroy(); return; }
-      let stream; try { stream = session.mux.open({ service: service.id }); } catch { socket.destroy(); return; }
-      socket.setNoDelay(true); splice(socket, stream);
+      if (peer.direct || peer.relay) { this.connect(peer, service, socket); return; }
+      if (peer.state !== 'reconnecting') { socket.destroy(); return; }
+      // Hold the connection until the device is back; data it sends waits in the socket.
+      const waiter = { socket, service, timer: setTimeout(() => socket.destroy(), 15000) };
+      peer.waiters.push(waiter);
+      socket.once('close', () => { clearTimeout(waiter.timer); peer.waiters = peer.waiters.filter(item => item !== waiter); });
     });
     forward.server.on('error', () => {});
     peer.forwards.set(service.id, forward);
@@ -201,6 +218,26 @@ export class MeshAgent extends EventEmitter {
     if (peer.forwards.get(service.id) !== forward || this.stopped) { forward.server.close(); return; }
     if (forward.port) this.assigned.set(key, forward.port); else forward.error = 'No local port is available.';
     this.emit('change');
+  }
+
+  connect(peer, service, socket) {
+    const session = peer.direct || peer.relay;
+    let stream; try { stream = session.mux.open({ service: service.id }); } catch { socket.destroy(); return; }
+    socket.setNoDelay(true); splice(socket, stream);
+  }
+  release(peer) {
+    for (const waiter of peer.waiters.splice(0)) { clearTimeout(waiter.timer); if (!waiter.socket.destroyed && peer.forwards.has(waiter.service.id)) this.connect(peer, waiter.service, waiter.socket); else waiter.socket.destroy(); }
+  }
+  // After sleep or a network change, connections that have gone quiet are
+  // usually dead. Replace them now instead of waiting for keepalives to notice.
+  refresh() {
+    if (this.stopped) return;
+    const now = Date.now();
+    this.lastDial.clear();
+    for (const peer of this.peers.values()) for (const session of [peer.direct, peer.relay]) if (session && now - session.mux.lastSeen > STALE) session.mux.close(new Error('The connection went quiet.'));
+    if (this.relaySocket && now - this.relaySocket.lastReceived > STALE) this.relaySocket.close(4001, 'Reconnecting after sleep or a network change.');
+    else if (!this.relaySocket && this.relayURL) { clearTimeout(this.relayTimer); this.relayAttempts = 0; void this.connectRelay(); }
+    this.maintain();
   }
 
   // Direct connections: TCP with length-prefixed handshake and record messages.
@@ -303,8 +340,10 @@ export class MeshAgent extends EventEmitter {
   maintain() {
     if (this.stopped) return;
     const addresses = JSON.stringify(this.catalog().addresses);
-    if (this.lastAddresses !== undefined && addresses !== this.lastAddresses) this.broadcast();
+    const changed = this.lastAddresses !== undefined && addresses !== this.lastAddresses;
     this.lastAddresses = addresses;
+    // A new network: tell peers where to find this device and start fresh connections.
+    if (changed) { this.broadcast(); this.refresh(); return; }
     for (const [peerId, known] of [...this.candidates]) if (!this.peers.get(peerId)?.direct) for (const address of [...known.keys()]) this.dial(peerId, address);
     for (const [address, time] of this.lastDial) if (Date.now() - time > 60000) this.lastDial.delete(address);
     for (const peerId of this.relayPeers) this.ensureRelay(peerId);
@@ -319,7 +358,7 @@ export class MeshAgent extends EventEmitter {
     let socket;
     try {
       const base = this.relayURL.endsWith('/') ? this.relayURL : this.relayURL + '/';
-      socket = await connectWebSocket(new URL('_dropovpn/v1/agent', base).href, { maxMessage: 512 * 1024, headers: { Authorization: `Bearer ${this.relayToken}`, 'X-DropoVPN-Mesh': this.keys.id, 'X-DropoVPN-Device': this.deviceId } });
+      socket = await connectWebSocket(new URL('_dropovpn/v1/agent', base).href, { maxMessage: 512 * 1024, headers: { Authorization: `Bearer ${this.relayToken}`, 'X-DropoVPN-Mesh': this.keys.id, 'X-DropoVPN-Device': this.deviceId, 'X-DropoVPN-Client': `${process.platform} ${this.version || ''}`.trim() } });
     } catch (error) {
       if (this.stopped) return;
       this.setRelay({ status: 'error', publicTunnels: false, message: error.status === 401 ? 'The relay did not accept this mesh’s access token.' : error.status ? 'That address did not answer like a DropoVPN relay.' : `The relay is unreachable: ${error.message}` });
@@ -333,12 +372,13 @@ export class MeshAgent extends EventEmitter {
       // Public visitors see a generic page: no device name or internal address.
       if (tunnel) connectTarget(stream, { ...tunnel, protocol: 'http' }, 'The app behind this URL is not running right now. Try again in a moment.'); else stream.destroy(new Error('That public URL has stopped.'));
     });
-    mux.on('close', () => socket.close());
+    mux.on('close', error => socket.close(4000, String(error?.message || 'Closed.').slice(0, 100)));
     // The relay is not trusted with more than dropping traffic, so nothing it
     // sends may throw out of the socket handler.
     socket.on('message', (data, binary) => { try { if (binary) this.relayBinary(data); else this.relayText(data); } catch { /* Ignore malformed relay messages. */ } });
-    socket.on('close', code => {
+    socket.on('close', (code, reason) => {
       if (this.relaySocket !== socket) return;
+      if (!this.stopped) this.log(`Lost the connection to the relay${reason ? ` (${reason})` : ''}. Reconnecting…`, 'warning');
       this.relaySocket = null; this.relayReady = false; mux.close(); this.relayPeers.clear(); this.relayStarted.clear();
       for (const timer of this.relayRetry.values()) clearTimeout(timer);
       this.relayRetry.clear();

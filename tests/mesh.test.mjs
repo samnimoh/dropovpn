@@ -278,3 +278,61 @@ test('the relay limits connections per address and paces devices that exceed the
   assert.ok(Date.now() - start >= 1800, `256 KB at 64 KB/s arrived in ${Date.now() - start} ms`);
   for (const ws of sockets) ws.close();
 });
+
+test('a device that drops briefly keeps its addresses, and new requests wait for it to come back', async t => {
+  const port = await devServer(t), secret = randomBytes(32);
+  const laptop = await agent(t, { secret, deviceName: 'Laptop', services: [service(port)] });
+  const desktop = await agent(t, { secret, deviceName: 'Desktop' });
+  desktop.candidate(laptop.deviceId, `127.0.0.1:${laptop.listenPort}`);
+  await until(() => peerNamed(desktop, 'Laptop')?.services[0]?.localPort);
+  const local = peerNamed(desktop, 'Laptop').services[0].localPort;
+  desktop.peers.get(laptop.deviceId).direct.mux.close(new Error('The network changed.'));
+  await until(() => peerNamed(desktop, 'Laptop').reconnecting);
+  assert.equal(peerNamed(desktop, 'Laptop').online, false);
+  assert.equal(peerNamed(desktop, 'Laptop').services[0].localPort, local);
+  const pending = get(local);
+  await new Promise(resolve => setTimeout(resolve, 150));
+  desktop.refresh();
+  assert.equal(JSON.parse((await pending).body).hello, 'from the shared device');
+  await until(() => peerNamed(desktop, 'Laptop').online);
+  assert.equal(peerNamed(desktop, 'Laptop').reconnecting, false);
+});
+
+test('a device that stays away goes offline after the grace period', async t => {
+  const port = await devServer(t), secret = randomBytes(32);
+  const laptop = await agent(t, { secret, deviceName: 'Laptop', services: [service(port)] });
+  const desktop = await agent(t, { secret, deviceName: 'Desktop', grace: 300 });
+  desktop.candidate(laptop.deviceId, `127.0.0.1:${laptop.listenPort}`);
+  await until(() => peerNamed(desktop, 'Laptop')?.services[0]?.localPort);
+  const local = peerNamed(desktop, 'Laptop').services[0].localPort;
+  // The laptop vanishes without saying goodbye, as when its network drops.
+  laptop.stopped = true; desktop.peers.get(laptop.deviceId).direct.mux.close(new Error('The network dropped.'));
+  await until(() => peerNamed(desktop, 'Laptop').reconnecting);
+  await until(() => !peerNamed(desktop, 'Laptop').reconnecting && !peerNamed(desktop, 'Laptop').online);
+  await until(() => !peerNamed(desktop, 'Laptop').services[0].localPort);
+  await assert.rejects(get(local));
+});
+
+test('waking up replaces connections that went quiet instead of waiting for keepalives', async t => {
+  const secret = randomBytes(32), relayPort = await relay(t);
+  const laptop = await agent(t, { secret, deviceName: 'Laptop', relayURL: `ws://127.0.0.1:${relayPort}`, relayToken: token });
+  const desktop = await agent(t, { secret, deviceName: 'Desktop', relayURL: `ws://127.0.0.1:${relayPort}`, relayToken: token });
+  await until(() => peerNamed(desktop, 'Laptop')?.path === 'direct' && desktop.relay.status === 'connected');
+  const peer = desktop.peers.get(laptop.deviceId), session = peer.direct, socket = desktop.relaySocket;
+  // As if the computer slept: nothing has arrived for a minute.
+  session.mux.lastSeen = Date.now() - 60000; socket.lastReceived = Date.now() - 60000;
+  desktop.refresh();
+  assert.equal(session.mux.closed, true);
+  await until(() => peer.direct && peer.direct !== session && desktop.relaySocket && desktop.relaySocket !== socket && desktop.relay.status === 'connected');
+});
+
+test('a device that leaves on purpose goes offline at once', async t => {
+  const port = await devServer(t), secret = randomBytes(32);
+  const laptop = await agent(t, { secret, deviceName: 'Laptop', services: [service(port)] });
+  const desktop = await agent(t, { secret, deviceName: 'Desktop' });
+  desktop.candidate(laptop.deviceId, `127.0.0.1:${laptop.listenPort}`);
+  await until(() => peerNamed(desktop, 'Laptop')?.services[0]?.localPort);
+  await laptop.stop();
+  await until(() => !peerNamed(desktop, 'Laptop').online);
+  assert.equal(peerNamed(desktop, 'Laptop').reconnecting, false);
+});
