@@ -19,9 +19,10 @@ const uiURL = development ? 'http://127.0.0.1:5173/' : new URL('../dist/index.ht
 app.setName('DropoVPN');
 if (process.env.DROPOVPN_TEST_DATA && !app.isPackaged) app.setPath('userData', process.env.DROPOVPN_TEST_DATA);
 // Isolated development sessions (smoke tests, screenshots) keep the mesh on
-// loopback, never announce themselves, and never use the shared relay.
+// loopback, never announce themselves, and never use the shared relay; the
+// screenshot script points them at a local stand-in instead.
 const isolated = !!process.env.DROPOVPN_TEST_DATA && !app.isPackaged;
-const defaultRelay = isolated ? null : DEFAULT_RELAY;
+const defaultRelay = !isolated ? DEFAULT_RELAY : process.env.DROPOVPN_TEST_RELAY ? { url: process.env.DROPOVPN_TEST_RELAY, token: process.env.DROPOVPN_TEST_RELAY_TOKEN || '' } : null;
 let window, tray, store, vpn, engine, mesh = null, tunnels, quitting = false;
 let importsReady = false, importingFiles = false;
 const pendingImports = new Set();

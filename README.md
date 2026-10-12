@@ -1,10 +1,16 @@
 # DropoVPN
 
-An Electron OpenVPN client for macOS and Windows, with automatic reconnection and an encrypted, per-profile saved password. It also links your devices into an end-to-end encrypted **device mesh**, so a local address like `localhost:3000` on one device opens on the others, and creates **public URLs** for local web apps through Cloudflare, ngrok or your own relay. The desktop interface uses React and TypeScript; the main process manages OpenVPN, the mesh and credential storage.
+An open-source desktop app for macOS and Windows that brings three things together:
+
+- **VPN:** an OpenVPN client with automatic reconnection and an encrypted, per-profile saved password.
+- **Device mesh:** links your own devices, so a local address like `localhost:3000` on one opens on the others. Traffic between them is end-to-end encrypted.
+- **Public URLs:** gives a local web app a link anyone can open, through Cloudflare, ngrok or your own relay.
+
+The interface uses React and TypeScript; the Electron main process manages OpenVPN, the mesh and credential storage.
 
 **[Visit the download website](https://dropovpn.vercel.app)** · [Download the public preview](https://github.com/samnimoh/dropovpn/releases/tag/v0.3.0) · [Report an issue](https://github.com/samnimoh/dropovpn/issues) · [MIT license](LICENSE)
 
-![DropoVPN connection screen with example profiles](website/assets/screenshots/connection.png)
+![DropoVPN connection screen with example profiles, and Device mesh and Public URLs in the sidebar](website/assets/screenshots/connection.png)
 
 ## Downloads
 
@@ -19,9 +25,25 @@ An Electron OpenVPN client for macOS and Windows, with automatic reconnection an
 
 DropoVPN is a client, not a VPN service. OpenVPN is included: macOS uses the engine inside the app; Windows installs the official OpenVPN engine and signed TAP-Windows6 driver in the same setup flow. Bring a working `.ovpn` profile. There is no kill switch; traffic is not blocked during reconnection.
 
+The device mesh and public URLs need no administrator permission and work with or without a VPN connection. When your devices can't reach each other directly, the app connects them through the DropoVPN relay at `dropovpn.samuelnimoh.com`. The relay is a background service the app talks to, not a web page; the download website is [dropovpn.vercel.app](https://dropovpn.vercel.app).
+
 ## Screenshots
 
-Screenshots show the actual desktop app with synthetic example profiles. No real server, certificate, password, or active VPN connection is included.
+Screenshots show the actual desktop app with synthetic example data: example profiles, example devices meshed on one computer, and an example public URL. No real server, certificate, password, VPN connection, relay or public URL is included.
+
+<details>
+<summary>Device mesh</summary>
+
+![DropoVPN device mesh with one device connected directly and sharing two local addresses, and one device offline](website/assets/screenshots/mesh.png)
+
+</details>
+
+<details>
+<summary>Public URLs</summary>
+
+![DropoVPN public URLs with a live example Cloudflare quick tunnel for localhost:5173](website/assets/screenshots/public-urls.png)
+
+</details>
 
 <details>
 <summary>VPN profiles</summary>
@@ -204,6 +226,6 @@ python3 -m http.server 4178 --directory website
 vercel --prod --yes --cwd website
 ```
 
-To refresh the public screenshots, run `npm run build && node scripts/screenshots.mjs`. The script launches an isolated desktop session with synthetic profiles and never starts a VPN connection.
+To refresh the public screenshots, run `npm run build && node scripts/screenshots.mjs` on macOS. The script launches isolated desktop sessions with synthetic profiles, a mesh on loopback through a local relay, and a stand-in `cloudflared`. It never starts a VPN connection, contacts the shared relay, or creates a public URL.
 
 For a new release, build and validate the installers, publish them together with SHA-256 checksums on GitHub, then update the versioned links in `website/index.html` and this README before redeploying. No automatic updater is included.
